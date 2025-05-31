@@ -2,11 +2,12 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlusCircle, FileUp, LayoutList, TrendingUp, DollarSign, Percent, CalendarDays, Hotel, AlertCircle, Loader2 } from "lucide-react";
-import type { Menu, Recipe } from "@/types";
+import type { Menu, MenuRecipeItem } from "@/types";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
@@ -60,21 +61,30 @@ export default function MenusPage() {
       setError(null);
       try {
         const menusCollection = collection(db, "menus");
-        const q = query(menusCollection, orderBy("name", "asc")); // Or orderBy "startDate"
+        // Consider ordering by startDate in descending order to see newest menus first
+        const q = query(menusCollection, orderBy("startDate", "desc")); 
         const querySnapshot = await getDocs(q);
         const fetchedMenus: Menu[] = querySnapshot.docs.map(doc => {
           const data = doc.data();
+          // Ensure recipes is an array, even if Firestore returns undefined or null
+          const recipesData = data.recipes || [];
+          const recipes: MenuRecipeItem[] = recipesData.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            cost: r.cost,
+          }));
+
           return {
             id: doc.id,
             name: data.name,
             description: data.description,
-            recipes: data.recipes || [], // Ensure recipes is an array
+            recipes: recipes, 
             totalCost: data.totalCost,
             sellingPrice: data.sellingPrice,
             hotel: data.hotel,
             period: data.period,
-            startDate: data.startDate, // Keep as Firestore Timestamp or string for now
-            endDate: data.endDate,     // Keep as Firestore Timestamp or string for now
+            startDate: data.startDate, 
+            endDate: data.endDate,     
             createdAt: data.createdAt,
             updatedAt: data.updatedAt,
           } as Menu;
@@ -95,11 +105,6 @@ export default function MenusPage() {
     fetchMenus();
   }, [toast]);
 
-
-  const handleCreateMenu = () => {
-    alert("Funcionalidad 'Crear Menú' (navegar a /menus/new) no implementada todavía.");
-    // router.push("/menus/new"); // Uncomment when /menus/new is created
-  };
 
   const handleImportXLSX = () => {
     alert("Funcionalidad 'Importar XLSX para Menús' no implementada.");
@@ -128,8 +133,10 @@ export default function MenusPage() {
             <Button onClick={handleImportXLSX} variant="outline">
               <FileUp className="mr-2 h-4 w-4" /> Importar XLSX
             </Button>
-            <Button onClick={handleCreateMenu}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Crear Menú
+            <Button asChild>
+              <Link href="/menus/new">
+                <PlusCircle className="mr-2 h-4 w-4" /> Crear Menú
+              </Link>
             </Button>
           </div>
         }
@@ -169,7 +176,7 @@ export default function MenusPage() {
         )}
         {!isLoading && !error && menus.map(menu => {
           const profit = menu.sellingPrice && menu.totalCost ? menu.sellingPrice - menu.totalCost : undefined;
-          const profitMargin = profit && menu.sellingPrice && menu.sellingPrice !== 0 ? (profit / menu.sellingPrice) * 100 : undefined;
+          const profitMargin = profit !== undefined && menu.sellingPrice && menu.sellingPrice !== 0 ? (profit / menu.sellingPrice) * 100 : undefined;
 
           return (
             <Card key={menu.id} className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
@@ -188,13 +195,18 @@ export default function MenusPage() {
                   <p className="text-sm ml-6">{formatDateRange(menu.startDate, menu.endDate, menu.period)}</p>
                 </div>
                 <div>
-                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground">Recetas Incluidas:</h4>
+                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground">Recetas Incluidas ({menu.recipes?.length || 0}):</h4>
                   {menu.recipes && menu.recipes.length > 0 ? (
-                    <ul className="list-disc list-inside space-y-1 text-sm ml-6">
-                      {menu.recipes.map(recipe => (
-                        <li key={recipe.id}>{recipe.name}</li>
-                      ))}
-                    </ul>
+                     <ScrollArea className="h-24 text-sm ml-6">
+                        <ul className="list-disc list-inside space-y-1 pr-2">
+                        {menu.recipes.map(recipe => (
+                            <li key={recipe.id} className="truncate" title={recipe.name}>
+                                {recipe.name} 
+                                {recipe.cost !== undefined && <span className="text-xs text-muted-foreground"> (€{recipe.cost.toFixed(2)})</span>}
+                            </li>
+                        ))}
+                        </ul>
+                    </ScrollArea>
                   ) : (
                     <p className="text-sm text-muted-foreground ml-6">No hay recetas asignadas.</p>
                   )}
@@ -212,13 +224,13 @@ export default function MenusPage() {
                   {profit !== undefined && (
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground flex items-center"><DollarSign className="h-4 w-4 mr-1 text-green-600" />Beneficio Bruto Est.:</span>
-                        <span className="font-semibold text-green-600">€{profit.toFixed(2)}</span>
+                        <span className={`font-semibold ${profit < 0 ? 'text-destructive' : 'text-green-600'}`}>€{profit.toFixed(2)}</span>
                     </div>
                   )}
-                  {profitMargin !== undefined && (
+                  {profitMargin !== undefined && menu.sellingPrice && menu.sellingPrice > 0 && (
                     <div className="flex justify-between items-center text-sm">
                         <span className="text-muted-foreground flex items-center"><Percent className="h-4 w-4 mr-1 text-blue-600" />Margen Beneficio Est.:</span>
-                        <span className="font-semibold text-blue-600">{profitMargin.toFixed(1)}%</span>
+                        <span className={`font-semibold ${profitMargin < 0 ? 'text-destructive' : 'text-blue-600'}`}>{profitMargin.toFixed(1)}%</span>
                     </div>
                   )}
                   <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => alert(`Gestionar menú ${menu.name} no implementado`)}>

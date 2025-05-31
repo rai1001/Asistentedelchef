@@ -38,14 +38,21 @@ export interface IngredientQuantity {
   unit: string; // Unit for this specific quantity in the recipe, e.g., "grams", "ml", "cups", "pieces"
 }
 
+// Represents a simplified recipe structure for embedding within a Menu
+export interface MenuRecipeItem {
+  id: string;
+  name: string;
+  cost?: number; 
+  // Add any other fields from Recipe you want to denormalize into the menu, e.g., category
+}
+
 export interface Menu {
   id: string;
   name: string;
   description?: string;
-  recipes: Recipe[]; // Embedding recipes directly for simplicity, or use IDs
+  recipes: MenuRecipeItem[]; // Array of simplified recipe items
   totalCost?: number; // Calculated
   sellingPrice?: number; // Price at which the menu is sold
-  date?: Date; // For daily/weekly menus - DEPRECATED, use startDate/endDate
   hotel?: string;
   period?: 'daily' | 'weekly' | 'monthly' | 'event' | 'other'; // Defines the recurrence or type
   startDate?: any; // Firestore Timestamp or ISO string
