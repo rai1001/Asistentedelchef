@@ -1,3 +1,4 @@
+
 'use server';
 
 /**
@@ -33,7 +34,20 @@ export type GenerateOptimizedRecipeOutput = z.infer<
 export async function generateOptimizedRecipe(
   input: GenerateOptimizedRecipeInput
 ): Promise<GenerateOptimizedRecipeOutput> {
-  return generateOptimizedRecipeFlow(input);
+  console.log('[generateOptimizedRecipeFlow] Received input:', JSON.stringify(input));
+  try {
+    const result = await generateOptimizedRecipeFlow(input);
+    console.log('[generateOptimizedRecipeFlow] Successfully returned:', JSON.stringify(result));
+    return result;
+  } catch (error) {
+    console.error('[generateOptimizedRecipeFlow] Error in flow execution:', error);
+    // Re-throw the error to ensure the client gets a proper error response
+    // Or handle it and return a specific error structure if preferred
+    if (error instanceof Error) {
+        throw new Error(`Failed to generate optimized recipe: ${error.message}`);
+    }
+    throw new Error('An unknown error occurred while generating the optimized recipe.');
+  }
 }
 
 const prompt = ai.definePrompt({
@@ -50,7 +64,7 @@ Target Cost: {{{targetCost}}}
 Recipe Name: {{{recipeName}}}
 
 Consider different cooking methods and ingredient combinations to achieve the best results.
-Output the recipe along with its estimated cost.  Do not exceed the target cost.
+Output the recipe along with its estimated cost. Do not exceed the target cost.
 If no recipe name is provided, generate one.
 `,
 });
@@ -62,7 +76,22 @@ const generateOptimizedRecipeFlow = ai.defineFlow(
     outputSchema: GenerateOptimizedRecipeOutputSchema,
   },
   async input => {
-    const {output} = await prompt(input);
-    return output!;
+    console.log('[generateOptimizedRecipeFlow] Flow started with input:', JSON.stringify(input));
+    try {
+      const {output} = await prompt(input);
+      console.log('[generateOptimizedRecipeFlow] Prompt output received:', JSON.stringify(output));
+      if (!output) {
+        console.error('[generateOptimizedRecipeFlow] Prompt returned undefined output.');
+        throw new Error('The AI model did not return an output.');
+      }
+      return output;
+    } catch (error) {
+      console.error('[generateOptimizedRecipeFlow] Error calling prompt:', error);
+      if (error instanceof Error) {
+        throw new Error(`AI prompt failed: ${error.message}`);
+      }
+      throw new Error('An unknown error occurred during the AI prompt call.');
+    }
   }
 );
+
