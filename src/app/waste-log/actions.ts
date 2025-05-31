@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { Ingredient } from "@/types";
+import type { Ingredient, WasteLogEntry } from "@/types"; // Added WasteLogEntry
 import { Timestamp } from "firebase/firestore";
 
 const wasteLogEntrySchema = z.object({
@@ -34,10 +34,30 @@ export async function addWasteLogEntryAction(
     }
     const ingredientData = ingredientSnap.data() as Ingredient;
 
+    const entryToSavePreClean: Omit<WasteLogEntry, 'id' | 'createdAt' | 'ingredientName'> = {
+        hotelName: validatedData.hotelName,
+        ingredientId: validatedData.ingredientId,
+        quantity: validatedData.quantity,
+        unit: validatedData.unit,
+        date: Timestamp.fromDate(validatedData.date),
+        reason: validatedData.reason,
+        notes: validatedData.notes,
+        recordedBy: validatedData.recordedBy,
+    };
+    
+    const dataToSave: Partial<typeof entryToSavePreClean> = {};
+    for (const key in entryToSavePreClean) {
+        if (Object.prototype.hasOwnProperty.call(entryToSavePreClean, key)) {
+            const value = entryToSavePreClean[key as keyof typeof entryToSavePreClean];
+            if (value !== undefined) {
+                dataToSave[key as keyof typeof entryToSavePreClean] = value;
+            }
+        }
+    }
+
     const docRef = await addDoc(collection(db, "wasteLog"), {
-      ...validatedData,
+      ...dataToSave,
       ingredientName: ingredientData.name, // Denormalize name for easier querying/display
-      date: Timestamp.fromDate(validatedData.date),
       createdAt: serverTimestamp(),
     });
     return { success: true, wasteLogEntryId: docRef.id };

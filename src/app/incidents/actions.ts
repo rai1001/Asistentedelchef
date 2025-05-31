@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { IncidentType } from "@/types";
+import type { IncidentType, OperationalIncident } from "@/types"; // Added OperationalIncident
 
 const incidentTypeValues: [IncidentType, ...IncidentType[]] = [
   'plate_returned', 
@@ -35,9 +35,23 @@ export async function addOperationalIncidentAction(
   try {
     const validatedData = operationalIncidentSchema.parse(data);
 
+    const incidentToSavePreClean: Omit<OperationalIncident, 'id' | 'createdAt' | 'updatedAt'> = {
+        ...validatedData,
+        date: Timestamp.fromDate(validatedData.date),
+    };
+
+    const dataToSave: Partial<typeof incidentToSavePreClean> = {};
+    for (const key in incidentToSavePreClean) {
+        if (Object.prototype.hasOwnProperty.call(incidentToSavePreClean, key)) {
+            const value = incidentToSavePreClean[key as keyof typeof incidentToSavePreClean];
+            if (value !== undefined) {
+                dataToSave[key as keyof typeof incidentToSavePreClean] = value;
+            }
+        }
+    }
+
     const docRef = await addDoc(collection(db, "incidents"), {
-      ...validatedData,
-      date: Timestamp.fromDate(validatedData.date),
+      ...dataToSave,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

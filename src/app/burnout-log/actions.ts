@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { BurnoutScore, ShiftType, DemandLevel, SupportLevel } from "@/types";
+import type { BurnoutScore, ShiftType, DemandLevel, SupportLevel, BurnoutLogEntry } from "@/types"; // Added BurnoutLogEntry
 
 const burnoutScoreValues: [BurnoutScore, ...BurnoutScore[]] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const shiftTypeValues: [ShiftType, ...ShiftType[]] = ['morning', 'afternoon', 'evening', 'split', 'full_day', 'other'];
@@ -37,9 +37,23 @@ export async function addBurnoutLogEntryAction(
   try {
     const validatedData = burnoutLogEntrySchema.parse(data);
 
+    const entryToSavePreClean: Omit<BurnoutLogEntry, 'id' | 'createdAt'> = {
+        ...validatedData,
+        date: Timestamp.fromDate(validatedData.date),
+    };
+
+    const dataToSave: Partial<typeof entryToSavePreClean> = {};
+    for (const key in entryToSavePreClean) {
+        if (Object.prototype.hasOwnProperty.call(entryToSavePreClean, key)) {
+            const value = entryToSavePreClean[key as keyof typeof entryToSavePreClean];
+            if (value !== undefined) {
+                dataToSave[key as keyof typeof entryToSavePreClean] = value;
+            }
+        }
+    }
+
     const docRef = await addDoc(collection(db, "burnoutLogs"), {
-      ...validatedData,
-      date: Timestamp.fromDate(validatedData.date),
+      ...dataToSave,
       createdAt: serverTimestamp(),
     });
     return { success: true, entryId: docRef.id };

@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { Recipe } from "@/types";
+import type { Recipe, ProductionPlan } from "@/types"; // Added ProductionPlan
 
 const productionPlanRecipeItemSchema = z.object({
   recipeId: z.string().min(1, "Debe seleccionar una receta."),
@@ -28,17 +28,27 @@ export async function addProductionPlanAction(
   try {
     const validatedData = productionPlanFormSchema.parse(data);
 
-    // Here, you might want to fetch recipe details if needed for more complex logic,
-    // e.g., to store recipe unit or default serving size, but for now, we keep it simple.
-    // The recipeName is passed from the form, which is fine for display.
-
-    const docRef = await addDoc(collection(db, "productionPlans"), {
+    const planToSavePreClean: Omit<ProductionPlan, 'id' | 'createdAt' | 'updatedAt' | 'status' | 'totalIngredientsRequired' | 'stockAnalysis'> = {
       name: validatedData.name,
       hotelName: validatedData.hotelName,
       planDate: Timestamp.fromDate(validatedData.planDate),
-      recipes: validatedData.recipes, // Storing name denormalized
-      status: 'Planeado', // Default status
+      recipes: validatedData.recipes, 
       notes: validatedData.notes,
+    };
+
+    const dataToSave: Partial<typeof planToSavePreClean> = {};
+    for (const key in planToSavePreClean) {
+        if (Object.prototype.hasOwnProperty.call(planToSavePreClean, key)) {
+            const value = planToSavePreClean[key as keyof typeof planToSavePreClean];
+            if (value !== undefined) {
+                dataToSave[key as keyof typeof planToSavePreClean] = value;
+            }
+        }
+    }
+    
+    const docRef = await addDoc(collection(db, "productionPlans"), {
+      ...dataToSave,
+      status: 'Planeado', // Default status
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });

@@ -32,12 +32,6 @@ export async function addMenuAction(
     const menuRecipes: MenuRecipeItem[] = [];
 
     if (validatedData.recipeIds.length > 0) {
-      // Firestore allows a maximum of 30 'in' array-contains-any, or array-contains queries.
-      // If recipeIds is very long, we might need to batch this. For now, assume it's within limits.
-      // A more robust way for very large recipeIds arrays would be to fetch them in chunks of 30.
-      // Or fetch all recipes and filter locally if the number of recipes isn't excessively large.
-
-      // Fetching recipe details for the selected IDs
       const recipesQuery = query(collection(db, "recipes"), where("__name__", "in", validatedData.recipeIds));
       const recipesSnapshot = await getDocs(recipesQuery);
       
@@ -61,7 +55,7 @@ export async function addMenuAction(
       }
     }
     
-    const menuToSave: Omit<Menu, 'id' | 'createdAt' | 'updatedAt'> = {
+    const menuToSavePreClean: Omit<Menu, 'id' | 'createdAt' | 'updatedAt'> = {
       name: validatedData.name,
       description: validatedData.description,
       hotel: validatedData.hotel,
@@ -72,6 +66,22 @@ export async function addMenuAction(
       totalCost: totalCost,
       sellingPrice: validatedData.sellingPrice,
     };
+
+    // Clean the object for Firestore: remove undefined fields
+    const menuToSave: Partial<typeof menuToSavePreClean> = {};
+    for (const key in menuToSavePreClean) {
+        if (Object.prototype.hasOwnProperty.call(menuToSavePreClean, key)) {
+            const value = menuToSavePreClean[key as keyof typeof menuToSavePreClean];
+            if (value !== undefined) {
+                menuToSave[key as keyof typeof menuToSavePreClean] = value;
+            }
+        }
+    }
+    // Ensure endDate is explicitly set to null if it was undefined in menuToSave, or keep its Timestamp value
+    if (menuToSavePreClean.endDate === undefined) {
+        menuToSave.endDate = null; // Or delete menuToSave.endDate if you prefer not to store nulls for truly optional fields
+    }
+
 
     const docRef = await addDoc(collection(db, "menus"), {
       ...menuToSave,
