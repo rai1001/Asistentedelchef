@@ -23,18 +23,25 @@ type IngredientFormValues = z.infer<typeof ingredientSchema>;
 export async function addIngredientAction(
   data: IngredientFormValues
 ): Promise<{ success: boolean; ingredientId?: string; error?: string }> {
+  console.log("[addIngredientAction] Received data:", data);
   try {
     const validatedData = ingredientSchema.parse(data);
+    console.log("[addIngredientAction] Validated data:", validatedData);
+
     const docRef = await addDoc(collection(db, "ingredients"), {
       ...validatedData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    console.log("[addIngredientAction] Document written with ID: ", docRef.id);
     return { success: true, ingredientId: docRef.id };
   } catch (error) {
-    console.error("Error adding ingredient to Firestore:", error);
+    console.error("[addIngredientAction] Error adding ingredient to Firestore:", error);
     if (error instanceof z.ZodError) {
-      return { success: false, error: "Error de validación: " + error.errors.map(e => e.message).join(', ') };
+      return { success: false, error: "Error de validación: " + error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') };
+    }
+    if (error instanceof Error) {
+        return { success: false, error: `Error de servidor: ${error.message}` };
     }
     return { success: false, error: "No se pudo añadir el ingrediente. Inténtalo de nuevo." };
   }
@@ -52,9 +59,11 @@ export async function addIngredientsBatchAction(
   const batch = writeBatch(db);
   let successCount = 0;
   const errorDetails: { index: number, message: string, data: any }[] = [];
+  console.log("[addIngredientsBatchAction] Received ingredientsData count:", ingredientsData.length);
 
   for (let i = 0; i < ingredientsData.length; i++) {
     const ingredient = ingredientsData[i];
+    console.log(`[addIngredientsBatchAction] Processing ingredient at index ${i}:`, ingredient);
     try {
       // Validate each ingredient. CostPerUnit, lowStockThreshold, currentStock must be numbers.
       const validatedData = ingredientSchema.parse({
@@ -68,6 +77,7 @@ export async function addIngredientsBatchAction(
         lowStockThreshold: Number(ingredient.lowStockThreshold) || 0,
         currentStock: Number(ingredient.currentStock) || 0,
       });
+      console.log(`[addIngredientsBatchAction] Validated data for index ${i}:`, validatedData);
 
       const newDocRef = doc(ingredientsCollection); // Auto-generate ID
       batch.set(newDocRef, {
@@ -77,10 +87,10 @@ export async function addIngredientsBatchAction(
       });
       successCount++;
     } catch (error) {
-      console.error(`Error processing ingredient at index ${i}:`, error, ingredient);
+      console.error(`[addIngredientsBatchAction] Error processing ingredient at index ${i}:`, error, ingredient);
       let message = "Error desconocido al procesar el ingrediente.";
       if (error instanceof z.ZodError) {
-        message = "Error de validación: " + error.errors.map(e => e.message).join(', ');
+        message = "Error de validación: " + error.errors.map(e => `${e.path.join('.')} - ${e.message}`).join(', ');
       } else if (error instanceof Error) {
         message = error.message;
       }
@@ -88,16 +98,19 @@ export async function addIngredientsBatchAction(
     }
   }
 
+  console.log(`[addIngredientsBatchAction] Successfully validated ${successCount} ingredients. Errors on ${errorDetails.length} ingredients.`);
+
   if (successCount > 0) {
     try {
       await batch.commit();
+      console.log("[addIngredientsBatchAction] Batch committed successfully.");
       return { success: true, count: successCount, errors: errorDetails };
     } catch (error) {
-      console.error("Error committing batch to Firestore:", error);
+      console.error("[addIngredientsBatchAction] Error committing batch to Firestore:", error);
       return { success: false, count: 0, errors: [{ index: -1, message: "Error al guardar el lote en la base de datos.", data: null }, ...errorDetails] };
     }
   } else {
-    // No ingredients were successfully validated to be added to the batch
+    console.warn("[addIngredientsBatchAction] No ingredients were successfully validated to be added to the batch.");
     return { success: false, count: 0, errors: errorDetails.length > 0 ? errorDetails : [{index: -1, message: "No se procesaron ingredientes válidos.", data: null}] };
   }
 }
