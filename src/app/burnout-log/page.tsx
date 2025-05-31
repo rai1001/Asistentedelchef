@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { HeartPulse, PlusCircle, AlertCircle, Loader2 } from "lucide-react";
 import type { BurnoutLogEntry } from "@/types"; 
-import { db } from "@/lib/firebase/config";
+import { db } from "@/lib/firebase/client"; // UPDATED IMPORT
 import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
@@ -26,6 +26,16 @@ export default function BurnoutLogPage() {
     const fetchBurnoutEntries = async () => {
         setIsLoading(true);
         setError(null);
+        if (!db) {
+          setError("La configuración de Firebase (cliente) no está disponible.");
+          setIsLoading(false);
+          toast({
+            title: "Error de Configuración",
+            description: "La base de datos del cliente no está inicializada. Revisa las variables de entorno.",
+            variant: "destructive",
+          });
+          return;
+        }
         try {
             const logCollection = collection(db, "burnoutLogs");
             const q = query(logCollection, orderBy("date", "desc"), orderBy("createdAt", "desc"));
@@ -167,4 +177,3 @@ export default function BurnoutLogPage() {
       </Card>
     </div>
   );
-}
