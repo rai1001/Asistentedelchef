@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,20 +13,16 @@ import type { Ingredient } from "@/types";
 // import { Input } from "@/components/ui/input"; // For search
 
 const initialIngredients: Ingredient[] = [
-  { id: '1', name: "Tomates Frescos", unit: "kg", costPerUnit: 2.5, supplier: "Proveedor Local Verduras", allergen: undefined, lowStockThreshold: 5, currentStock: 10 },
-  { id: '2', name: "Harina de Trigo", unit: "kg", costPerUnit: 1.2, supplier: "Distribuidor Harinas SA", allergen: "gluten", lowStockThreshold: 10, currentStock: 8 },
-  { id: '3', name: "Aceite de Oliva Virgen Extra", unit: "L", costPerUnit: 8.0, supplier: "Almazara El Olivo", allergen: undefined, lowStockThreshold: 2, currentStock: 3 },
-  { id: '4', name: "Leche Entera", unit: "L", costPerUnit: 0.9, supplier: "Granja Lechera Local", allergen: "dairy", lowStockThreshold: 5, currentStock: 12 },
-  { id: '5', name: "Huevos Frescos", unit: "docena", costPerUnit: 2.0, supplier: "Granja Avícola Eco", allergen: "egg", lowStockThreshold: 3, currentStock: 2 },
+  { id: '1', name: "Tomates Frescos", unit: "kg", costPerUnit: 2.5, supplier: "Proveedor Local Verduras", allergen: undefined, lowStockThreshold: 5, currentStock: 10, category: "Verduras", description: "Tomates maduros para ensalada y salsa." },
+  { id: '2', name: "Harina de Trigo", unit: "kg", costPerUnit: 1.2, supplier: "Distribuidor Harinas SA", allergen: "gluten", lowStockThreshold: 10, currentStock: 8, category: "Secos", description: "Harina de trigo común para panadería y repostería." },
+  { id: '3', name: "Aceite de Oliva Virgen Extra", unit: "L", costPerUnit: 8.0, supplier: "Almazara El Olivo", allergen: undefined, lowStockThreshold: 2, currentStock: 3, category: "Aceites", description: "Aceite de oliva de alta calidad." },
+  { id: '4', name: "Leche Entera", unit: "L", costPerUnit: 0.9, supplier: "Granja Lechera Local", allergen: "dairy", lowStockThreshold: 5, currentStock: 12, category: "Lácteos", description: "Leche fresca pasteurizada." },
+  { id: '5', name: "Huevos Frescos", unit: "docena", costPerUnit: 2.0, supplier: "Granja Avícola Eco", allergen: "egg", lowStockThreshold: 3, currentStock: 2, category: "Huevos", description: "Huevos de gallinas criadas en libertad." },
 ];
 
 export default function IngredientsPage() {
   const [ingredients, setIngredients] = React.useState<Ingredient[]>(initialIngredients);
   const [searchTerm, setSearchTerm] = React.useState('');
-
-  const handleAddIngredient = () => {
-    alert("Funcionalidad 'Añadir Ingrediente' no implementada.");
-  };
 
   const handleEditIngredient = (id: string) => {
     alert(`Editar ingrediente ${id} no implementado.`);
@@ -40,23 +37,26 @@ export default function IngredientsPage() {
 
   const filteredIngredients = ingredients.filter(ingredient =>
     ingredient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (ingredient.category && ingredient.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (ingredient.allergen && ingredient.allergen.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (ingredient.supplier && ingredient.supplier.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
     <div className="space-y-8">
-      <PageHeader 
-        title="Biblioteca de Ingredientes" 
+      <PageHeader
+        title="Biblioteca de Ingredientes"
         icon={ShoppingBasket}
         description="Gestiona todos tus ingredientes, proveedores, alérgenos y niveles de stock."
         actions={
-          <Button onClick={handleAddIngredient}>
-            <PlusCircle className="mr-2 h-4 w-4" /> Añadir Ingrediente
+          <Button asChild>
+            <Link href="/ingredients/new">
+              <PlusCircle className="mr-2 h-4 w-4" /> Añadir Ingrediente
+            </Link>
           </Button>
         }
       />
-      
+
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="font-headline">Listado de Ingredientes</CardTitle>
@@ -70,6 +70,7 @@ export default function IngredientsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
+                <TableHead className="hidden md:table-cell">Categoría</TableHead>
                 <TableHead className="hidden md:table-cell">Unidad</TableHead>
                 <TableHead className="text-right">Costo/Unidad (€)</TableHead>
                 <TableHead className="hidden lg:table-cell">Alérgeno</TableHead>
@@ -80,7 +81,7 @@ export default function IngredientsPage() {
             <TableBody>
               {filteredIngredients.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground h-24">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground h-24">
                     No se encontraron ingredientes.
                   </TableCell>
                 </TableRow>
@@ -88,6 +89,7 @@ export default function IngredientsPage() {
               {filteredIngredients.map((ingredient) => (
                 <TableRow key={ingredient.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="font-medium text-foreground">{ingredient.name}</TableCell>
+                  <TableCell className="hidden md:table-cell">{ingredient.category ?? '-'}</TableCell>
                   <TableCell className="hidden md:table-cell">{ingredient.unit}</TableCell>
                   <TableCell className="text-right">
                     {ingredient.costPerUnit.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

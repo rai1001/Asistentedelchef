@@ -21,6 +21,8 @@ export interface Ingredient {
   allergen?: string; // e.g., "gluten", "dairy", "nuts" - could be an array for multiple
   lowStockThreshold?: number;
   currentStock?: number;
+  category?: string; // Nueva propiedad para la categoría del ingrediente
+  description?: string; // Nueva propiedad para la descripción del ingrediente
 }
 
 export interface IngredientQuantity {
