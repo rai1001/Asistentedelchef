@@ -12,6 +12,7 @@ import {
   Archive,
   Trash2, // Icon for Waste Log
   ClipboardList, // Icon for Production Planning
+  HeartPulse, // Icon for Burnout Log
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -40,6 +41,7 @@ export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
   { title: "Inventario", href: "/inventory", icon: Archive, matchIncludes: true },
   { title: "Registro de Mermas", href: "/waste-log", icon: Trash2, matchIncludes: true },
   { title: "Planificación", href: "/production-plans", icon: ClipboardList, matchIncludes: true },
+  { title: "Registro de Burnout", href: "/burnout-log", icon: HeartPulse, matchIncludes: true },
   {
     groupTitle: "IA y Machine Learning",
     icon: CookingPot,
@@ -50,4 +52,3 @@ export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
     ],
   },
 ];
-

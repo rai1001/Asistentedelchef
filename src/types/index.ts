@@ -121,6 +121,30 @@ export interface ProductionPlan {
   updatedAt?: Timestamp;
 }
 
+// For Burnout Log
+export type BurnoutScore = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+export type ShiftType = 'morning' | 'afternoon' | 'evening' | 'split' | 'full_day' | 'other';
+export type DemandLevel = 'low' | 'medium' | 'high' | 'extreme';
+export type SupportLevel = 'none' | 'poor' | 'adequate' | 'good' | 'excellent';
+
+export interface BurnoutLogEntry {
+  id: string; // Firestore document ID
+  hotelName: string;
+  date: Timestamp; // Firestore Timestamp for when the observation/log is made
+  cookName?: string; // Optional: Name or identifier of the cook
+  department: string; // "Partida" or department
+  burnoutScore: BurnoutScore; // Scale of 1-10
+  shiftType: ShiftType; // e.g., morning, evening, split
+  hoursWorked: number; // Hours worked in that shift or day
+  peakDemandLevel: DemandLevel; // Perceived peak demand during the shift
+  supportReceived: SupportLevel; // Perceived level of support received
+  productionPressureNotes?: string; // Specific notes on pressure from production targets
+  salesPressureNotes?: string; // Specific notes on pressure from sales/service demands
+  generalNotes?: string; // Any other relevant observations
+  recordedBy?: string; // Optional: User who recorded the entry
+  createdAt?: Timestamp; // Firestore Timestamp for when the record was created
+}
+
 
 // For DataTable
 export interface ColumnConfig<T> {
@@ -128,4 +152,3 @@ export interface ColumnConfig<T> {
   header: string;
   cell?: ({ row }: { row: { getValue: (key: string) => any } }) => React.ReactNode;
 }
-
