@@ -30,6 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { addMenuAction, type MenuFormValues } from '../actions';
 import { cn } from "@/lib/utils";
 
+export const dynamic = 'force-dynamic'; // Forzar renderizado dinámico
 
 const menuFormSchema = z.object({
   name: z.string().min(3, { message: "El nombre del menú debe tener al menos 3 caracteres." }),
