@@ -145,6 +145,30 @@ export interface BurnoutLogEntry {
   createdAt?: Timestamp; // Firestore Timestamp for when the record was created
 }
 
+// For Operational Incidents
+export type IncidentType = 
+  | 'plate_returned' 
+  | 'customer_complaint' 
+  | 'equipment_failure' 
+  | 'supply_issue' 
+  | 'staff_issue'
+  | 'safety_hygiene'
+  | 'other';
+
+export interface OperationalIncident {
+  id: string; // Firestore document ID
+  hotelName: string;
+  date: Timestamp; // Date and time of the incident
+  incidentType: IncidentType;
+  description: string; // Detailed description of the incident
+  relatedRecipeOrDepartment?: string; // e.g., "Paella Valenciana", "Cocina Caliente"
+  resolution?: string; // Steps taken or to be taken
+  reportedBy?: string; // Name or ID of the person who reported
+  status?: 'open' | 'in_progress' | 'resolved' | 'closed'; // Status of the incident
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
 
 // For DataTable
 export interface ColumnConfig<T> {
