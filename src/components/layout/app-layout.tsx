@@ -25,9 +25,12 @@ import { ChefHat, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
-  // Initialize sidebar state from cookie or default to true (expanded)
-  const [initialOpen, setInitialOpen] = React.useState(true);
+  const [isMounted, setIsMounted] = React.useState(false);
+  const [initialOpen, setInitialOpen] = React.useState(true); // Default for SSR and initial client render
+
   React.useEffect(() => {
+    setIsMounted(true); // Set to true once mounted on the client
+
     const storedState = document.cookie
       .split('; ')
       .find(row => row.startsWith('sidebar_state='))
@@ -37,7 +40,28 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  if (!isMounted) {
+    // Render a simpler layout for SSR and the initial client render pass before useEffect runs.
+    // This avoids hydration mismatches for complex client-side dependent UIs.
+    return (
+      <div className="flex min-h-svh w-full flex-col">
+        {/* Basic header placeholder - can be styled or expanded if needed */}
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background/80 px-4 lg:h-[60px] lg:px-6 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <ChefHat className="w-8 h-8 text-primary opacity-50" />
+            <h1 className="text-xl font-headline font-bold text-foreground opacity-50">
+              {APP_NAME}
+            </h1>
+          </div>
+        </header>
+        <main className="flex-1 p-4 sm:p-6 md:p-8 bg-background">
+          {children}
+        </main>
+      </div>
+    );
+  }
 
+  // Original rendering logic, now only runs after isMounted is true
   return (
     <SidebarProvider defaultOpen={initialOpen}>
       <Sidebar collapsible="icon" className="border-r border-sidebar-border">
