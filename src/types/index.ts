@@ -80,6 +80,21 @@ export interface DisplayInventoryItem extends InventoryItem {
   isLowStock: boolean;
 }
 
+// For Waste Log
+export interface WasteLogEntry {
+  id: string; // Firestore document ID
+  hotelName: string;
+  ingredientId: string;
+  ingredientName: string; // Denormalized for easier display
+  quantity: number;
+  unit: string; // Unit of the wasted quantity
+  date: any; // Firestore Timestamp
+  reason: string; // Could be enum: "Expired", "Spoiled", "Burnt", "Dropped", "Contaminated", "Overproduction", "Plate Waste", "Other"
+  notes?: string;
+  recordedBy?: string; // User ID or name, if auth is implemented
+  createdAt?: any; // Firestore Timestamp
+}
+
 
 // For DataTable
 export interface ColumnConfig<T> {

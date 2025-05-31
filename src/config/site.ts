@@ -9,7 +9,8 @@ import {
   Image as ImageIcon,
   CookingPot,
   BarChartBig, 
-  Archive, // Added for Inventory
+  Archive,
+  Trash2, // Icon for Waste Log
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -36,6 +37,7 @@ export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
   { title: "Menús", href: "/menus", icon: LayoutList, matchIncludes: true },
   { title: "Ingredientes", href: "/ingredients", icon: ShoppingBasket, matchIncludes: true },
   { title: "Inventario", href: "/inventory", icon: Archive, matchIncludes: true },
+  { title: "Registro de Mermas", href: "/waste-log", icon: Trash2, matchIncludes: true },
   {
     groupTitle: "IA y Machine Learning",
     icon: CookingPot,
@@ -46,4 +48,3 @@ export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
     ],
   },
 ];
-
