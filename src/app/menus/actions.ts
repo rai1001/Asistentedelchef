@@ -47,11 +47,15 @@ export async function addMenuAction(
           continue;
         }
         totalCost += recipeData.cost || 0;
-        menuRecipes.push({
+        
+        const recipeItemForMenu: MenuRecipeItem = {
           id: recipeData.id,
           name: recipeData.name,
-          cost: recipeData.cost,
-        });
+        };
+        if (recipeData.cost !== undefined) {
+          recipeItemForMenu.cost = recipeData.cost;
+        }
+        menuRecipes.push(recipeItemForMenu);
       }
     }
     
@@ -67,19 +71,23 @@ export async function addMenuAction(
       sellingPrice: validatedData.sellingPrice,
     };
 
-    // Clean the object for Firestore: remove undefined fields
-    const menuToSave: Partial<typeof menuToSavePreClean> = {};
+    const menuToSave: Partial<Omit<Menu, 'id' | 'createdAt' | 'updatedAt'>> = {};
     for (const key in menuToSavePreClean) {
         if (Object.prototype.hasOwnProperty.call(menuToSavePreClean, key)) {
-            const value = menuToSavePreClean[key as keyof typeof menuToSavePreClean];
+            const typedKey = key as keyof typeof menuToSavePreClean;
+            const value = menuToSavePreClean[typedKey];
             if (value !== undefined) {
-                menuToSave[key as keyof typeof menuToSavePreClean] = value;
+                (menuToSave as any)[typedKey] = value;
             }
         }
     }
-    // Ensure endDate is explicitly set to null if it was undefined in menuToSave, or keep its Timestamp value
-    if (menuToSavePreClean.endDate === undefined) {
-        menuToSave.endDate = null; // Or delete menuToSave.endDate if you prefer not to store nulls for truly optional fields
+    
+    if (menuToSavePreClean.endDate === undefined && validatedData.endDate === undefined) {
+        // If endDate was genuinely optional and not provided, ensure it's not set or set to null if your schema/logic prefers null.
+        // If it was undefined because conversion failed (which Zod should catch), this is different.
+        // For truly optional fields that can be absent, delete them or set to null.
+        // Since 'endDate' in Firestore can be null or absent:
+        menuToSave.endDate = null; 
     }
 
 

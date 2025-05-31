@@ -23,22 +23,22 @@ type IngredientFormValues = z.infer<typeof ingredientSchema>;
 export async function addIngredientAction(
   data: IngredientFormValues
 ): Promise<{ success: boolean; ingredientId?: string; error?: string }> {
-  console.log("[addIngredientAction] Received data:", data);
+  console.log("[addIngredientAction] Received data for parsing:", JSON.stringify(data, null, 2));
   try {
     const validatedData = ingredientSchema.parse(data);
-    console.log("[addIngredientAction] Validated data (raw from Zod):", validatedData);
+    console.log("[addIngredientAction] Validated data (raw from Zod):", JSON.stringify(validatedData, null, 2));
 
-    // Create a new object for Firestore, removing any undefined properties
     const dataToSave: Partial<IngredientFormValues> = {};
     for (const key in validatedData) {
       if (Object.prototype.hasOwnProperty.call(validatedData, key)) {
-        const value = validatedData[key as keyof IngredientFormValues];
+        const typedKey = key as keyof IngredientFormValues;
+        const value = validatedData[typedKey];
         if (value !== undefined) {
-          dataToSave[key as keyof IngredientFormValues] = value;
+          (dataToSave as any)[typedKey] = value;
         }
       }
     }
-    console.log("[addIngredientAction] Data to save (cleaned):", dataToSave);
+    console.log("[addIngredientAction] Data to save to Firestore (cleaned of undefined):", JSON.stringify(dataToSave, null, 2));
 
 
     const docRef = await addDoc(collection(db, "ingredients"), {
@@ -51,6 +51,7 @@ export async function addIngredientAction(
   } catch (error) {
     console.error("[addIngredientAction] Error adding ingredient to Firestore:", error);
     if (error instanceof z.ZodError) {
+      console.error("[addIngredientAction] Zod validation errors:", JSON.stringify(error.errors, null, 2));
       return { success: false, error: "Error de validación: " + error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') };
     }
     if (error instanceof Error) {
@@ -83,7 +84,7 @@ export async function addIngredientsBatchAction(
         name: ingredient.name,
         category: ingredient.category,
         unit: ingredient.unit,
-        costPerUnit: Number(ingredient.costPerUnit) || 0, // Default to 0 if NaN
+        costPerUnit: Number(ingredient.costPerUnit) || 0, // Default to 0 if NaN, Zod will catch if not positive
         supplier: ingredient.supplier,
         allergen: ingredient.allergen,
         description: ingredient.description,
@@ -95,9 +96,10 @@ export async function addIngredientsBatchAction(
       const dataToSave: Partial<IngredientFormValues> = {};
       for (const key in validatedData) {
         if (Object.prototype.hasOwnProperty.call(validatedData, key)) {
-          const value = validatedData[key as keyof IngredientFormValues];
+          const typedKey = key as keyof IngredientFormValues;
+          const value = validatedData[typedKey];
           if (value !== undefined) {
-            dataToSave[key as keyof IngredientFormValues] = value;
+            (dataToSave as any)[typedKey] = value;
           }
         }
       }
