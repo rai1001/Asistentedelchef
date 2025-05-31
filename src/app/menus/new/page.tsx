@@ -37,7 +37,6 @@ const menuFormSchema = z.object({
   description: z.string().optional(),
   hotel: z.string().optional(),
   period: z.enum(['daily', 'weekly', 'monthly', 'event', 'other'], {
-    required_error: "Selecciona un período.",
     errorMap: () => ({ message: "Selecciona un período válido." })
   }),
   startDate: z.date({ required_error: "La fecha de inicio es requerida." }),
