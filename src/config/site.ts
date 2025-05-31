@@ -1,3 +1,4 @@
+
 import {
   Home,
   BookOpen,
@@ -6,7 +7,8 @@ import {
   Sparkles,
   Wand2,
   Image as ImageIcon,
-  CookingPot, // Changed from Settings2 for a more thematic group icon
+  CookingPot,
+  BarChartBig, // Añadido para KPIs
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -28,12 +30,13 @@ export interface NavItemGroupConfig {
 
 export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
   { title: "Dashboard", href: "/", icon: Home, matchIncludes: false },
+  { title: "Analíticas (KPIs)", href: "/", icon: BarChartBig, matchIncludes: false }, // Nuevo enlace a KPIs, apunta al Dashboard
   { title: "Recetas", href: "/recipes", icon: BookOpen, matchIncludes: true },
   { title: "Menús", href: "/menus", icon: LayoutList, matchIncludes: true },
   { title: "Ingredientes", href: "/ingredients", icon: ShoppingBasket, matchIncludes: true },
   {
-    groupTitle: "Herramientas IA",
-    icon: CookingPot,
+    groupTitle: "IA y Machine Learning", // Renombrado
+    icon: CookingPot, // Se mantiene el icono temático
     items: [
       { title: "Optimizar Receta", href: "/ai/generate-optimized-recipe", icon: Sparkles, matchIncludes: false },
       { title: "Adaptar Receta", href: "/ai/adapt-recipe", icon: Wand2, matchIncludes: false },
