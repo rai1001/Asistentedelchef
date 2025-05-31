@@ -2,8 +2,8 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { adminDb } from "@/lib/firebase/config";
+import { FieldValue } from "firebase-admin/firestore";
 
 const inventoryItemSchema = z.object({
   ingredientId: z.string().min(1, { message: "Debe seleccionar un ingrediente." }),
@@ -20,16 +20,30 @@ export async function addInventoryItemAction(
   try {
     const validatedData = inventoryItemSchema.parse(data);
     
-    const docRef = await addDoc(collection(db, "inventory"), {
-      ...validatedData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    const dataToSave: Partial<InventoryItemFormValues> = {};
+    for (const key in validatedData) {
+        if (Object.prototype.hasOwnProperty.call(validatedData, key)) {
+            const typedKey = key as keyof InventoryItemFormValues;
+            const value = validatedData[typedKey];
+            if (value !== undefined) {
+                (dataToSave as any)[typedKey] = value;
+            }
+        }
+    }
+
+    const docRef = await adminDb.collection("inventory").add({
+      ...dataToSave,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     return { success: true, inventoryItemId: docRef.id };
   } catch (error) {
-    console.error("Error adding inventory item to Firestore:", error);
+    console.error("Error adding inventory item to Firestore (admin):", error);
     if (error instanceof z.ZodError) {
       return { success: false, error: "Error de validación: " + error.errors.map(e => e.message).join(', ') };
+    }
+    if (error instanceof Error) {
+        return { success: false, error: error.message };
     }
     return { success: false, error: "No se pudo añadir el artículo al inventario. Inténtalo de nuevo." };
   }

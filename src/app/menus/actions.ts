@@ -2,10 +2,9 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp, doc, getDoc, writeBatch, query, where, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
+import { adminDb } from "@/lib/firebase/config";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 import type { Recipe, Menu, MenuRecipeItem } from "@/types";
-import { Timestamp } from "firebase/firestore";
 
 const menuFormSchema = z.object({
   name: z.string().min(3, { message: "El nombre del menú debe tener al menos 3 caracteres." }),
@@ -32,11 +31,11 @@ export async function addMenuAction(
     const menuRecipes: MenuRecipeItem[] = [];
 
     if (validatedData.recipeIds.length > 0) {
-      const recipesQuery = query(collection(db, "recipes"), where("__name__", "in", validatedData.recipeIds));
-      const recipesSnapshot = await getDocs(recipesQuery);
+      const recipesQuery = adminDb.collection("recipes").where(admin.firestore.FieldPath.documentId(), "in", validatedData.recipeIds);
+      const recipesSnapshot = await recipesQuery.get();
       
       const foundRecipesMap = new Map<string, Recipe>();
-      recipesSnapshot.forEach(docSnap => {
+      recipesSnapshot.docs.forEach(docSnap => {
         foundRecipesMap.set(docSnap.id, { id: docSnap.id, ...docSnap.data() } as Recipe);
       });
 
@@ -46,14 +45,17 @@ export async function addMenuAction(
           console.warn(`Receta con ID ${recipeId} no encontrada. Será omitida del menú.`);
           continue;
         }
-        totalCost += recipeData.cost || 0;
         
         const recipeItemForMenu: MenuRecipeItem = {
           id: recipeData.id,
           name: recipeData.name,
         };
-        if (recipeData.cost !== undefined) {
-          recipeItemForMenu.cost = recipeData.cost;
+        if (recipeData.cost !== undefined && recipeData.cost !== null) { // Ensure cost is a valid number
+            totalCost += recipeData.cost;
+            recipeItemForMenu.cost = recipeData.cost;
+        } else {
+            // Handle case where cost might be undefined or null, perhaps log it or assign a default
+            console.warn(`Costo no definido para la receta ${recipeData.name} (ID: ${recipeId}). No se sumará al costo total del menú.`);
         }
         menuRecipes.push(recipeItemForMenu);
       }
@@ -82,24 +84,19 @@ export async function addMenuAction(
         }
     }
     
-    if (menuToSavePreClean.endDate === undefined && validatedData.endDate === undefined) {
-        // If endDate was genuinely optional and not provided, ensure it's not set or set to null if your schema/logic prefers null.
-        // If it was undefined because conversion failed (which Zod should catch), this is different.
-        // For truly optional fields that can be absent, delete them or set to null.
-        // Since 'endDate' in Firestore can be null or absent:
+    if (menuToSave.endDate === undefined) {
         menuToSave.endDate = null; 
     }
 
-
-    const docRef = await addDoc(collection(db, "menus"), {
+    const docRef = await adminDb.collection("menus").add({
       ...menuToSave,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
 
     return { success: true, menuId: docRef.id };
   } catch (error) {
-    console.error("Error adding menu to Firestore:", error);
+    console.error("Error adding menu to Firestore (admin):", error);
     if (error instanceof z.ZodError) {
       return { success: false, error: "Error de validación: " + error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') };
     }

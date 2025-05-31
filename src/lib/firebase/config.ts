@@ -1,75 +1,93 @@
 
-import { initializeApp, getApps, getApp, type FirebaseOptions } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { initializeApp as initializeClientApp, getApps as getClientApps, getApp as getClientApp, type FirebaseOptions } from 'firebase/app';
+import { getFirestore as getClientFirestore } from 'firebase/firestore';
+import * as admin from 'firebase-admin';
 
-// Attempt to get projectId from GOOGLE_CLOUD_PROJECT (common in Cloud Run)
-// then fallback to NEXT_PUBLIC_FIREBASE_PROJECT_ID.
+// Client SDK Initialization
 const projectIdFromEnv = process.env.GOOGLE_CLOUD_PROJECT || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
-console.log(`[Firebase Config] GOOGLE_CLOUD_PROJECT: ${process.env.GOOGLE_CLOUD_PROJECT}`);
-console.log(`[Firebase Config] NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`);
-console.log(`[Firebase Config] Resolved projectId to use: ${projectIdFromEnv}`);
+console.log(`[Firebase Client Config] GOOGLE_CLOUD_PROJECT: ${process.env.GOOGLE_CLOUD_PROJECT}`);
+console.log(`[Firebase Client Config] NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`);
+console.log(`[Firebase Client Config] Resolved projectId to use for client SDK: ${projectIdFromEnv}`);
 
 if (!projectIdFromEnv) {
-  const errorMessage = "Firebase projectId is missing. Critical configuration error. Ensure GOOGLE_CLOUD_PROJECT (for Cloud Run) or NEXT_PUBLIC_FIREBASE_PROJECT_ID (for client/server Next.js) environment variable is set and accessible.";
+  const errorMessage = "Firebase projectId is missing for client SDK. Critical configuration error. Ensure GOOGLE_CLOUD_PROJECT (for Cloud Run) or NEXT_PUBLIC_FIREBASE_PROJECT_ID (for client/server Next.js) environment variable is set and accessible.";
   console.error(errorMessage);
-  // Throwing an error here will stop the application from starting with a bad config,
-  // making the issue more visible in logs immediately.
   throw new Error(errorMessage);
 }
 
-const firebaseConfig: FirebaseOptions = {
+const firebaseClientConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: projectIdFromEnv, // Use the derived projectId
+  projectId: projectIdFromEnv,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Log the configuration being used (omitting sensitive parts if necessary, though API key is often logged)
-console.log(`[Firebase Config] Initializing Firebase with effective projectId: ${firebaseConfig.projectId}`);
-if (!firebaseConfig.apiKey) {
-  console.warn("[Firebase Config] Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is missing or undefined.");
-}
-if (!firebaseConfig.authDomain) {
-  console.warn("[Firebase Config] Firebase Auth Domain (NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) is missing or undefined.");
+console.log(`[Firebase Client Config] Initializing Firebase client SDK with effective projectId: ${firebaseClientConfig.projectId}`);
+if (!firebaseClientConfig.apiKey) {
+  console.warn("[Firebase Client Config] Firebase API Key (NEXT_PUBLIC_FIREBASE_API_KEY) is missing or undefined.");
 }
 
-
-let app;
-if (!getApps().length) {
+let clientApp;
+if (!getClientApps().length) {
   try {
-    app = initializeApp(firebaseConfig);
-    console.log("[Firebase Config] Firebase app initialized successfully.");
+    clientApp = initializeClientApp(firebaseClientConfig);
+    console.log("[Firebase Client Config] Firebase client app initialized successfully.");
   } catch (e) {
-    console.error("[Firebase Config] Error initializing Firebase app:", e);
-    // If initialization fails, db will be undefined, leading to errors later.
-    // Handle this case, e.g., by not trying to get Firestore instance or by re-throwing.
-    throw e; // Re-throw to make it clear initialization failed
+    console.error("[Firebase Client Config] Error initializing Firebase client app:", e);
+    throw e; 
   }
 } else {
-  app = getApp();
-  console.log("[Firebase Config] Firebase app already initialized (likely due to HMR or multiple imports).");
+  clientApp = getClientApp();
+  console.log("[Firebase Client Config] Firebase client app already initialized.");
 }
 
-let db;
-// Only try to get Firestore if app was successfully initialized
-if (app && app.name) { // Check if app object is valid
+let db; // Client Firestore instance
+if (clientApp && clientApp.name) { 
     try {
-        db = getFirestore(app);
-        console.log("[Firebase Config] Firestore instance obtained successfully.");
+        db = getClientFirestore(clientApp);
+        console.log("[Firebase Client Config] Client Firestore instance obtained successfully.");
     } catch (e) {
-        console.error("[Firebase Config] Error obtaining Firestore instance:", e);
-        // db will remain undefined.
-        throw e; // Re-throw
+        console.error("[Firebase Client Config] Error obtaining client Firestore instance:", e);
+        throw e; 
     }
 } else {
-    const appInitErrorMessage = "[Firebase Config] Firebase app is not properly initialized, cannot get Firestore instance.";
-    console.error(appInitErrorMessage);
-    // This state should ideally be prevented by throwing an error during initializeApp.
-    // If we reach here, it means app initialization might have silently failed or app is null/undefined.
-    throw new Error(appInitErrorMessage);
+    const clientAppInitErrorMessage = "[Firebase Client Config] Firebase client app is not properly initialized, cannot get client Firestore instance.";
+    console.error(clientAppInitErrorMessage);
+    throw new Error(clientAppInitErrorMessage);
 }
 
-export { app, db };
+// Admin SDK Initialization
+let adminApp: admin.app.App;
+if (!admin.apps.length) {
+  try {
+    // When running in Cloud Run or other GCP environments, initializeApp() without arguments
+    // will use Application Default Credentials and infer projectId.
+    // For local development, ensure GOOGLE_APPLICATION_CREDENTIALS env var is set.
+    adminApp = admin.initializeApp();
+    console.log("[Firebase Admin Config] Firebase Admin SDK initialized successfully.");
+  } catch (e) {
+    console.error("[Firebase Admin Config] Error initializing Firebase Admin SDK:", e);
+    // Try initializing with explicit project ID as a fallback, though ADC should handle it.
+    try {
+        console.warn("[Firebase Admin Config] Retrying Admin SDK initialization with explicit projectId from GOOGLE_CLOUD_PROJECT.");
+        adminApp = admin.initializeApp({
+            projectId: process.env.GOOGLE_CLOUD_PROJECT, // This should be available in Cloud Run
+        });
+        console.log("[Firebase Admin Config] Firebase Admin SDK initialized successfully with explicit projectId.");
+    } catch (e2) {
+        console.error("[Firebase Admin Config] Error initializing Firebase Admin SDK even with explicit projectId:", e2);
+        throw e2;
+    }
+  }
+} else {
+  adminApp = admin.app();
+  console.log("[Firebase Admin Config] Firebase Admin SDK already initialized.");
+}
+
+const adminDb = adminApp.firestore();
+console.log("[Firebase Admin Config] Admin Firestore instance obtained successfully.");
+
+export { clientApp as app, db, adminApp, adminDb };

@@ -2,9 +2,9 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
-import type { BurnoutScore, ShiftType, DemandLevel, SupportLevel, BurnoutLogEntry } from "@/types"; // Added BurnoutLogEntry
+import { adminDb } from "@/lib/firebase/config";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import type { BurnoutScore, ShiftType, DemandLevel, SupportLevel, BurnoutLogEntry } from "@/types";
 
 const burnoutScoreValues: [BurnoutScore, ...BurnoutScore[]] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const shiftTypeValues: [ShiftType, ...ShiftType[]] = ['morning', 'afternoon', 'evening', 'split', 'full_day', 'other'];
@@ -47,18 +47,18 @@ export async function addBurnoutLogEntryAction(
         if (Object.prototype.hasOwnProperty.call(entryToSavePreClean, key)) {
             const value = entryToSavePreClean[key as keyof typeof entryToSavePreClean];
             if (value !== undefined) {
-                dataToSave[key as keyof typeof entryToSavePreClean] = value;
+                (dataToSave as any)[key as keyof typeof entryToSavePreClean] = value;
             }
         }
     }
 
-    const docRef = await addDoc(collection(db, "burnoutLogs"), {
+    const docRef = await adminDb.collection("burnoutLogs").add({
       ...dataToSave,
-      createdAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
     });
     return { success: true, entryId: docRef.id };
   } catch (error) {
-    console.error("Error adding burnout log entry to Firestore:", error);
+    console.error("Error adding burnout log entry to Firestore (admin):", error);
     if (error instanceof z.ZodError) {
       return { success: false, error: "Error de validación: " + error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') };
     }

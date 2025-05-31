@@ -2,9 +2,9 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
-import type { IncidentType, OperationalIncident } from "@/types"; // Added OperationalIncident
+import { adminDb } from "@/lib/firebase/config";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import type { IncidentType, OperationalIncident } from "@/types";
 
 const incidentTypeValues: [IncidentType, ...IncidentType[]] = [
   'plate_returned', 
@@ -45,19 +45,19 @@ export async function addOperationalIncidentAction(
         if (Object.prototype.hasOwnProperty.call(incidentToSavePreClean, key)) {
             const value = incidentToSavePreClean[key as keyof typeof incidentToSavePreClean];
             if (value !== undefined) {
-                dataToSave[key as keyof typeof incidentToSavePreClean] = value;
+                (dataToSave as any)[key as keyof typeof incidentToSavePreClean] = value;
             }
         }
     }
 
-    const docRef = await addDoc(collection(db, "incidents"), {
+    const docRef = await adminDb.collection("incidents").add({
       ...dataToSave,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
     return { success: true, incidentId: docRef.id };
   } catch (error) {
-    console.error("Error adding operational incident to Firestore:", error);
+    console.error("Error adding operational incident to Firestore (admin):", error);
     if (error instanceof z.ZodError) {
       return { success: false, error: "Error de validación: " + error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') };
     }

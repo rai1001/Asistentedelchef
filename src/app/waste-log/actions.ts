@@ -2,10 +2,9 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp, doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase/config";
-import type { Ingredient, WasteLogEntry } from "@/types"; // Added WasteLogEntry
-import { Timestamp } from "firebase/firestore";
+import { adminDb } from "@/lib/firebase/config";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import type { Ingredient, WasteLogEntry } from "@/types";
 
 const wasteLogEntrySchema = z.object({
   hotelName: z.string().min(2, { message: "El nombre del hotel debe tener al menos 2 caracteres." }),
@@ -15,7 +14,7 @@ const wasteLogEntrySchema = z.object({
   date: z.date({ required_error: "La fecha de la merma es requerida." }),
   reason: z.string().min(3, { message: "El motivo debe tener al menos 3 caracteres." }),
   notes: z.string().optional(),
-  recordedBy: z.string().optional(), // Could be enhanced with actual user data later
+  recordedBy: z.string().optional(),
 });
 
 export type WasteLogEntryFormValues = z.infer<typeof wasteLogEntrySchema>;
@@ -26,10 +25,10 @@ export async function addWasteLogEntryAction(
   try {
     const validatedData = wasteLogEntrySchema.parse(data);
 
-    const ingredientDocRef = doc(db, "ingredients", validatedData.ingredientId);
-    const ingredientSnap = await getDoc(ingredientDocRef);
+    const ingredientDocRef = adminDb.collection("ingredients").doc(validatedData.ingredientId);
+    const ingredientSnap = await ingredientDocRef.get();
 
-    if (!ingredientSnap.exists()) {
+    if (!ingredientSnap.exists) {
       return { success: false, error: `Ingrediente con ID ${validatedData.ingredientId} no encontrado.` };
     }
     const ingredientData = ingredientSnap.data() as Ingredient;
@@ -50,19 +49,19 @@ export async function addWasteLogEntryAction(
         if (Object.prototype.hasOwnProperty.call(entryToSavePreClean, key)) {
             const value = entryToSavePreClean[key as keyof typeof entryToSavePreClean];
             if (value !== undefined) {
-                dataToSave[key as keyof typeof entryToSavePreClean] = value;
+                (dataToSave as any)[key as keyof typeof entryToSavePreClean] = value;
             }
         }
     }
 
-    const docRef = await addDoc(collection(db, "wasteLog"), {
+    const docRef = await adminDb.collection("wasteLog").add({
       ...dataToSave,
-      ingredientName: ingredientData.name, // Denormalize name for easier querying/display
-      createdAt: serverTimestamp(),
+      ingredientName: ingredientData.name, 
+      createdAt: FieldValue.serverTimestamp(),
     });
     return { success: true, wasteLogEntryId: docRef.id };
   } catch (error) {
-    console.error("Error adding waste log entry to Firestore:", error);
+    console.error("Error adding waste log entry to Firestore (admin):", error);
     if (error instanceof z.ZodError) {
       return { success: false, error: "Error de validación: " + error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ') };
     }
