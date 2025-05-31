@@ -191,3 +191,15 @@ export interface RecipeNutritionAnalysisOutput {
   disclaimer?: string; // e.g., "Estimates may vary based on specific ingredients and preparation."
   // We could add more fields like fiber, sugar, sodium, etc. if needed
 }
+
+// For Recipe Import from XLSX
+export interface RecipeImportItem {
+  name: string;
+  category?: string;
+  prepTime?: number;
+  cuisine?: string;
+  instructions: string;
+  imageUrl?: string;
+  dietaryTags?: string; // Comma-separated string from XLSX
+  ingredientsString: string; // Special format: "Ing1:Qty1:Unit1;Ing2:Qty2:Unit2"
+}

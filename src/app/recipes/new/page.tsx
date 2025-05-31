@@ -8,8 +8,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, useFieldArray } from "react-hook-form";
 import * as z from "zod";
 import { db } from "@/lib/firebase/config";
-import { collection, getDocs } from "firebase/firestore";
-import type { Ingredient } from "@/types";
+import { collection, getDocs, doc } from "firebase/firestore"; // Removed getDoc from here, it's used below
+import type { Ingredient, Recipe } from "@/types"; // Added Recipe type
 
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,9 @@ import { BookOpenText, Save, ArrowLeft, PlusCircle, Trash2 } from "lucide-react"
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
 import { addRecipeAction, type RecipeFormValues } from '../actions';
+// Import getDoc specifically for getRecipeCost function
+import { getDoc } from "firebase/firestore";
+
 
 const recipeFormSchema = z.object({
   name: z.string().min(3, { message: "El nombre de la receta debe tener al menos 3 caracteres." }),
@@ -89,10 +92,12 @@ export default function NewRecipePage() {
     setIsLoading(true);
     try {
       const result = await addRecipeAction(values);
-      if (result.success) {
+      if (result.success && result.recipeId) {
+        // Fetch the cost again if needed, or rely on the potentially returned cost
+        const recipeCost = result.cost !== undefined ? result.cost : await getRecipeCost(result.recipeId);
         toast({
           title: "Receta Creada",
-          description: `La receta "${values.name}" ha sido añadida con éxito. Costo estimado: €${(await getRecipeCost(result.recipeId!)).toFixed(2)}`,
+          description: `La receta "${values.name}" ha sido añadida con éxito. Costo estimado: €${recipeCost.toFixed(2)}. La info nutricional se está generando.`,
         });
         router.push('/recipes'); 
       } else {
@@ -115,10 +120,9 @@ export default function NewRecipePage() {
   }
   
   // Helper function to re-fetch recipe cost after creation for toast.
-  // This is illustrative; in a real app, the action might return the cost.
   async function getRecipeCost(recipeId: string): Promise<number> {
-    const recipeDoc = await getDoc(doc(db, "recipes", recipeId));
-    return recipeDoc.exists() ? (recipeDoc.data() as Recipe).cost || 0 : 0;
+    const recipeDocSnap = await getDoc(doc(db, "recipes", recipeId));
+    return recipeDocSnap.exists() ? (recipeDocSnap.data() as Recipe).cost || 0 : 0;
   }
 
 
