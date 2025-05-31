@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -16,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ShoppingBasket, Save, ArrowLeft } from "lucide-react";
 import { LoadingSpinner } from '@/components/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
+import { addIngredientAction } from '../actions';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: "El nombre del ingrediente debe tener al menos 2 caracteres." }),
@@ -53,18 +55,31 @@ export default function NewIngredientPage() {
 
   async function onSubmit(values: IngredientFormValues) {
     setIsLoading(true);
-    console.log("Datos del nuevo ingrediente:", values);
-    // Aquí iría la lógica para guardar en Firebase Firestore
-    // Por ahora, simulamos una espera y mostramos un toast
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    toast({
-      title: "Ingrediente Creado (Simulación)",
-      description: `El ingrediente "${values.name}" ha sido añadido a la consola.`,
-    });
-    setIsLoading(false);
-    // Opcional: Redirigir a la lista de ingredientes
-    // router.push('/ingredients'); 
+    try {
+      const result = await addIngredientAction(values);
+      if (result.success) {
+        toast({
+          title: "Ingrediente Creado",
+          description: `El ingrediente "${values.name}" ha sido añadido con éxito.`,
+        });
+        router.push('/ingredients'); 
+      } else {
+        toast({
+          title: "Error al crear ingrediente",
+          description: result.error || "No se pudo guardar el ingrediente.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Error submitting form:", error);
+      toast({
+        title: "Error Inesperado",
+        description: "Ocurrió un error al procesar la solicitud.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
