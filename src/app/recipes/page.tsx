@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -10,11 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import { PlusCircle, FileUp, MoreHorizontal, BookOpen, Pencil, Trash2 } from "lucide-react";
 import type { Recipe } from "@/types";
 import Image from "next/image";
+import { Input } from "@/components/ui/input"; // Added for search, if implemented
 
 const initialRecipes: Recipe[] = [
-  { id: '1', name: "Paella Valenciana", category: "Plato Principal", cost: 12.50, prepTime: 60, cuisine: "Española", ingredients: [], instructions: "", imageUrl: "https://placehold.co/64x64/A3B18A/F5F5DC?text=P", dataAiHint:"paella food" },
-  { id: '2', name: "Sopa de Tomate Casera", category: "Entrante", cost: 4.00, prepTime: 30, cuisine: "Internacional", ingredients: [], instructions: "", imageUrl: "https://placehold.co/64x64/A3B18A/F5F5DC?text=S", dataAiHint:"tomato soup" },
-  { id: '3', name: "Tiramisú Clásico", category: "Postre", cost: 6.75, prepTime: 25, cuisine: "Italiana", ingredients: [], instructions: "", imageUrl: "https://placehold.co/64x64/A3B18A/F5F5DC?text=T", dataAiHint:"tiramisu dessert" },
+  { id: '1', name: "Paella Valenciana", category: "Plato Principal", cost: 12.50, prepTime: 60, cuisine: "Española", ingredients: [], instructions: "", imageUrl: "https://placehold.co/64x64/A3B18A/F5F5DC?text=P", dataAiHint:"paella food", dietaryTags: ["contains-shellfish"] },
+  { id: '2', name: "Sopa de Tomate Casera", category: "Entrante", cost: 4.00, prepTime: 30, cuisine: "Internacional", ingredients: [], instructions: "", imageUrl: "https://placehold.co/64x64/A3B18A/F5F5DC?text=S", dataAiHint:"tomato soup", dietaryTags: ["vegetarian", "gluten-free"] },
+  { id: '3', name: "Tiramisú Clásico", category: "Postre", cost: 6.75, prepTime: 25, cuisine: "Italiana", ingredients: [], instructions: "", imageUrl: "https://placehold.co/64x64/A3B18A/F5F5DC?text=T", dataAiHint:"tiramisu dessert", dietaryTags: ["contains-dairy", "contains-egg"] },
 ];
 
 export default function RecipesPage() {
@@ -23,11 +25,11 @@ export default function RecipesPage() {
 
   const handleAddRecipe = () => {
     // Placeholder: navigation or modal for new recipe
-    alert("Funcionalidad 'Añadir Receta' no implementada.");
+    alert("Funcionalidad 'Añadir Receta' no implementada. Se creará una página dedicada para esto.");
   };
 
   const handleImportXLSX = () => {
-    alert("Funcionalidad 'Importar XLSX' no implementada.");
+    alert("Funcionalidad 'Importar XLSX' para recetas no implementada.");
   };
   
   const handleEditRecipe = (id: string) => {
@@ -35,7 +37,7 @@ export default function RecipesPage() {
   };
 
   const handleDeleteRecipe = (id: string) => {
-    if(confirm(`¿Seguro que quieres eliminar la receta ${recipes.find(r=>r.id===id)?.name}?`)) {
+    if(confirm(`¿Seguro que quieres eliminar la receta ${recipes.find(r=>r.id===id)?.name}? (Esto es solo una simulación)`)) {
         setRecipes(prev => prev.filter(recipe => recipe.id !== id));
         // Add toast notification here
     }
@@ -43,8 +45,9 @@ export default function RecipesPage() {
 
   const filteredRecipes = recipes.filter(recipe => 
     recipe.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recipe.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    recipe.cuisine?.toLowerCase().includes(searchTerm.toLowerCase())
+    (recipe.category && recipe.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (recipe.cuisine && recipe.cuisine.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (recipe.dietaryTags && recipe.dietaryTags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
   return (
@@ -70,8 +73,12 @@ export default function RecipesPage() {
           <CardTitle className="font-headline">Listado de Recetas</CardTitle>
           <CardDescription>
             Visualiza, edita y organiza todas tus recetas disponibles.
-            {/* Placeholder for search input */}
-            {/* <Input placeholder="Buscar recetas..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="max-w-sm mt-2" /> */}
+            <Input 
+              placeholder="Buscar recetas..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)} 
+              className="max-w-sm mt-2"
+            />
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -91,7 +98,7 @@ export default function RecipesPage() {
               {filteredRecipes.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center text-muted-foreground h-24">
-                    No se encontraron recetas.
+                    No se encontraron recetas que coincidan con tu búsqueda o no hay recetas registradas.
                   </TableCell>
                 </TableRow>
               )}

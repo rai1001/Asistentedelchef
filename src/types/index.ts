@@ -1,3 +1,4 @@
+
 export interface Recipe {
   id: string;
   name: string;
@@ -10,6 +11,7 @@ export interface Recipe {
   cuisine?: string; // e.g., Italian, Mexican
   featured?: boolean; // For dashboard
   dataAiHint?: string;
+  dietaryTags?: string[]; // e.g., ["vegan", "gluten-free"]
 }
 
 export interface Ingredient {

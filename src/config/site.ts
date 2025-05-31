@@ -30,13 +30,13 @@ export interface NavItemGroupConfig {
 
 export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
   { title: "Dashboard", href: "/", icon: Home, matchIncludes: false },
-  { title: "Analíticas (KPIs)", href: "/", icon: BarChartBig, matchIncludes: false }, // Nuevo enlace a KPIs, apunta al Dashboard
+  { title: "Analíticas (KPIs)", href: "/", icon: BarChartBig, matchIncludes: false },
   { title: "Recetas", href: "/recipes", icon: BookOpen, matchIncludes: true },
   { title: "Menús", href: "/menus", icon: LayoutList, matchIncludes: true },
   { title: "Ingredientes", href: "/ingredients", icon: ShoppingBasket, matchIncludes: true },
   {
-    groupTitle: "IA y Machine Learning", // Renombrado
-    icon: CookingPot, // Se mantiene el icono temático
+    groupTitle: "IA y Machine Learning",
+    icon: CookingPot,
     items: [
       { title: "Optimizar Receta", href: "/ai/generate-optimized-recipe", icon: Sparkles, matchIncludes: false },
       { title: "Adaptar Receta", href: "/ai/adapt-recipe", icon: Wand2, matchIncludes: false },
