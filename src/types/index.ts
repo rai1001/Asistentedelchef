@@ -45,7 +45,13 @@ export interface Menu {
   recipes: Recipe[]; // Embedding recipes directly for simplicity, or use IDs
   totalCost?: number; // Calculated
   sellingPrice?: number; // Price at which the menu is sold
-  date?: Date; // For daily/weekly menus
+  date?: Date; // For daily/weekly menus - DEPRECATED, use startDate/endDate
+  hotel?: string;
+  period?: 'daily' | 'weekly' | 'monthly' | 'event' | 'other'; // Defines the recurrence or type
+  startDate?: any; // Firestore Timestamp or ISO string
+  endDate?: any; // Firestore Timestamp or ISO string (optional, e.g., for daily menus startDate might be enough)
+  createdAt?: any; // Firestore Timestamp
+  updatedAt?: any; // Firestore Timestamp
 }
 
 // For DataTable

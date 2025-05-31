@@ -1,34 +1,120 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, FileUp, LayoutList, TrendingUp, DollarSign, Percent } from "lucide-react";
+import { PlusCircle, FileUp, LayoutList, TrendingUp, DollarSign, Percent, CalendarDays, Hotel, AlertCircle, Loader2 } from "lucide-react";
 import type { Menu, Recipe } from "@/types";
+import { db } from "@/lib/firebase/config";
+import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
-const sampleRecipes: Recipe[] = [
-  { id: '1', name: "Paella Valenciana", category: "Plato Principal", cost: 12.50, prepTime: 60, cuisine: "Española", ingredients: [], instructions: "" },
-  { id: '2', name: "Sopa de Tomate Casera", category: "Entrante", cost: 4.00, prepTime: 30, cuisine: "Internacional", ingredients: [], instructions: "" },
-  { id: '3', name: "Tiramisú Clásico", category: "Postre", cost: 6.75, prepTime: 25, cuisine: "Italiana", ingredients: [], instructions: "" },
-];
+// Helper function to safely convert Firestore Timestamp or string to Date object
+const convertToDate = (dateInput: any): Date | null => {
+  if (!dateInput) return null;
+  if (dateInput instanceof Timestamp) {
+    return dateInput.toDate();
+  }
+  if (typeof dateInput === 'string') {
+    const parsedDate = new Date(dateInput);
+    return isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }
+  // If it's already a Date object (less likely from Firestore directly unless transformed)
+  if (dateInput instanceof Date) {
+    return dateInput;
+  }
+  return null;
+};
 
-const initialMenus: Menu[] = [
-  { id: '1', name: "Menú del Día - Lunes", recipes: [sampleRecipes[0], sampleRecipes[1]], totalCost: 16.50, sellingPrice: 25.00, description: "Un menú equilibrado para empezar la semana." },
-  { id: '2', name: "Menú Degustación Fin de Semana", recipes: sampleRecipes, totalCost: 23.25, sellingPrice: 40.00, description: "Experiencia completa con nuestros mejores platos." },
-];
+// Helper function to format date ranges
+const formatDateRange = (startDate: any, endDate: any, period: Menu['period']): string => {
+  const start = convertToDate(startDate);
+  const end = convertToDate(endDate);
+
+  if (!start) return "Fechas no especificadas";
+
+  const formattedStart = format(start, 'PP', { locale: es });
+
+  if (period === 'daily' || !end || format(start, 'yyyy-MM-dd') === format(end, 'yyyy-MM-dd')) {
+    return formattedStart;
+  }
+  
+  const formattedEnd = format(end, 'PP', { locale: es });
+  return `${formattedStart} - ${formattedEnd}`;
+};
 
 
 export default function MenusPage() {
-  const [menus, setMenus] = React.useState<Menu[]>(initialMenus);
+  const [menus, setMenus] = React.useState<Menu[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchMenus = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const menusCollection = collection(db, "menus");
+        const q = query(menusCollection, orderBy("name", "asc")); // Or orderBy "startDate"
+        const querySnapshot = await getDocs(q);
+        const fetchedMenus: Menu[] = querySnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.name,
+            description: data.description,
+            recipes: data.recipes || [], // Ensure recipes is an array
+            totalCost: data.totalCost,
+            sellingPrice: data.sellingPrice,
+            hotel: data.hotel,
+            period: data.period,
+            startDate: data.startDate, // Keep as Firestore Timestamp or string for now
+            endDate: data.endDate,     // Keep as Firestore Timestamp or string for now
+            createdAt: data.createdAt,
+            updatedAt: data.updatedAt,
+          } as Menu;
+        });
+        setMenus(fetchedMenus);
+      } catch (err) {
+        console.error("Error fetching menus:", err);
+        setError("No se pudieron cargar los menús. Inténtalo de nuevo más tarde.");
+        toast({
+          title: "Error al cargar menús",
+          description: "Hubo un problema al obtener los datos de Firestore.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchMenus();
+  }, [toast]);
+
 
   const handleCreateMenu = () => {
-    alert("Funcionalidad 'Crear Menú' no implementada. El drag-and-drop no está implementado.");
+    alert("Funcionalidad 'Crear Menú' (navegar a /menus/new) no implementada todavía.");
+    // router.push("/menus/new"); // Uncomment when /menus/new is created
   };
 
   const handleImportXLSX = () => {
-    alert("Funcionalidad 'Importar XLSX' no implementada.");
+    alert("Funcionalidad 'Importar XLSX para Menús' no implementada.");
+  };
+
+  const getPeriodLabel = (period?: Menu['period']): string => {
+    if (!period) return 'No especificado';
+    switch (period) {
+      case 'daily': return 'Diario';
+      case 'weekly': return 'Semanal';
+      case 'monthly': return 'Mensual';
+      case 'event': return 'Evento Especial';
+      case 'other': return 'Otro';
+      default: return period;
+    }
   };
 
   return (
@@ -58,17 +144,32 @@ export default function MenusPage() {
         </CardHeader>
       </Card>
 
+      {isLoading && (
+        <div className="flex justify-center items-center h-64">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="ml-4 text-muted-foreground">Cargando menús...</p>
+        </div>
+      )}
+      {!isLoading && error && (
+        <Card className="md:col-span-2 lg:col-span-3">
+          <CardContent className="pt-6 text-center text-destructive">
+            <AlertCircle className="mx-auto h-12 w-12 mb-4" />
+            <p>{error}</p>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {menus.length === 0 && (
+        {!isLoading && !error && menus.length === 0 && (
             <Card className="md:col-span-2 lg:col-span-3">
                 <CardContent className="pt-6">
                     <p className="text-center text-muted-foreground">No hay menús creados. ¡Empieza añadiendo uno!</p>
                 </CardContent>
             </Card>
         )}
-        {menus.map(menu => {
+        {!isLoading && !error && menus.map(menu => {
           const profit = menu.sellingPrice && menu.totalCost ? menu.sellingPrice - menu.totalCost : undefined;
-          const profitMargin = profit && menu.sellingPrice ? (profit / menu.sellingPrice) * 100 : undefined;
+          const profitMargin = profit && menu.sellingPrice && menu.sellingPrice !== 0 ? (profit / menu.sellingPrice) * 100 : undefined;
 
           return (
             <Card key={menu.id} className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
@@ -76,13 +177,28 @@ export default function MenusPage() {
                 <CardTitle className="font-headline">{menu.name}</CardTitle>
                 <CardDescription>{menu.description || "Sin descripción."}</CardDescription>
               </CardHeader>
-              <CardContent className="flex-grow">
-                <h4 className="font-semibold mb-2 text-sm text-muted-foreground">Recetas Incluidas:</h4>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  {menu.recipes.map(recipe => (
-                    <li key={recipe.id}>{recipe.name}</li>
-                  ))}
-                </ul>
+              <CardContent className="flex-grow space-y-3">
+                <div>
+                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground flex items-center"><Hotel className="h-4 w-4 mr-2 text-primary/70" />Hotel:</h4>
+                  <p className="text-sm ml-6">{menu.hotel || "No especificado"}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary/70" />Período y Fechas:</h4>
+                  <p className="text-sm ml-6">{getPeriodLabel(menu.period)}</p>
+                  <p className="text-sm ml-6">{formatDateRange(menu.startDate, menu.endDate, menu.period)}</p>
+                </div>
+                <div>
+                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground">Recetas Incluidas:</h4>
+                  {menu.recipes && menu.recipes.length > 0 ? (
+                    <ul className="list-disc list-inside space-y-1 text-sm ml-6">
+                      {menu.recipes.map(recipe => (
+                        <li key={recipe.id}>{recipe.name}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-sm text-muted-foreground ml-6">No hay recetas asignadas.</p>
+                  )}
+                </div>
               </CardContent>
               <CardContent className="border-t pt-4 space-y-3">
                   <div className="flex justify-between items-center text-sm">
