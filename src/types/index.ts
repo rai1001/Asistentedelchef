@@ -19,14 +19,14 @@ export interface Recipe {
 export interface Ingredient {
   id: string;
   name: string;
+  category?: string;
   unit: string; // e.g., kg, L, piece (This is the base unit for costPerUnit)
   costPerUnit: number;
   supplier?: string;
   allergen?: string; // e.g., "gluten", "dairy", "nuts" - could be an array for multiple
-  lowStockThreshold?: number;
-  currentStock?: number;
-  category?: string;
   description?: string;
+  lowStockThreshold?: number;
+  currentStock?: number; // This might be better managed in a separate inventory collection
   createdAt?: any; // Firestore Timestamp
   updatedAt?: any; // Firestore Timestamp
 }
@@ -43,7 +43,6 @@ export interface MenuRecipeItem {
   id: string;
   name: string;
   cost?: number; 
-  // Add any other fields from Recipe you want to denormalize into the menu, e.g., category
 }
 
 export interface Menu {
@@ -61,9 +60,30 @@ export interface Menu {
   updatedAt?: any; // Firestore Timestamp
 }
 
+// For Inventory Management
+export interface InventoryItem {
+  id: string; // Firestore document ID of this inventory record
+  ingredientId: string; // FK to the 'ingredients' collection
+  hotelName: string; // Name of the hotel or location
+  currentStock: number; // Current quantity in stock
+  averageCostPerUnit?: number; // Weighted average cost for the unit defined in the Ingredient
+  // unit is implicitly taken from the linked Ingredient document
+  updatedAt?: any; // Firestore Timestamp, for when the stock was last updated
+}
+
+// Combined type for displaying inventory items with ingredient details
+export interface DisplayInventoryItem extends InventoryItem {
+  ingredientName: string;
+  unit: string; // Base unit from the Ingredient document
+  lowStockThreshold?: number; // From the Ingredient document
+  isLowStock: boolean;
+}
+
+
 // For DataTable
 export interface ColumnConfig<T> {
   accessorKey: keyof T | string;
   header: string;
   cell?: ({ row }: { row: { getValue: (key: string) => any } }) => React.ReactNode;
 }
+

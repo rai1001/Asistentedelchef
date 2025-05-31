@@ -8,7 +8,8 @@ import {
   Wand2,
   Image as ImageIcon,
   CookingPot,
-  BarChartBig, // Añadido para KPIs
+  BarChartBig, 
+  Archive, // Added for Inventory
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -30,10 +31,11 @@ export interface NavItemGroupConfig {
 
 export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
   { title: "Dashboard", href: "/", icon: Home, matchIncludes: false },
-  { title: "Analíticas (KPIs)", href: "/", icon: BarChartBig, matchIncludes: false },
+  { title: "Analíticas (KPIs)", href: "/", icon: BarChartBig, matchIncludes: false }, // Points to dashboard for now
   { title: "Recetas", href: "/recipes", icon: BookOpen, matchIncludes: true },
   { title: "Menús", href: "/menus", icon: LayoutList, matchIncludes: true },
   { title: "Ingredientes", href: "/ingredients", icon: ShoppingBasket, matchIncludes: true },
+  { title: "Inventario", href: "/inventory", icon: Archive, matchIncludes: true },
   {
     groupTitle: "IA y Machine Learning",
     icon: CookingPot,
@@ -44,3 +46,4 @@ export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
     ],
   },
 ];
+
