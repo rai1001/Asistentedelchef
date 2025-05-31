@@ -12,26 +12,30 @@ export interface Recipe {
   featured?: boolean; // For dashboard
   dataAiHint?: string;
   dietaryTags?: string[]; // e.g., ["vegan", "gluten-free"]
+  createdAt?: any; // Firestore Timestamp
+  updatedAt?: any; // Firestore Timestamp
 }
 
 export interface Ingredient {
   id: string;
   name: string;
-  unit: string; // e.g., kg, L, piece
+  unit: string; // e.g., kg, L, piece (This is the base unit for costPerUnit)
   costPerUnit: number;
   supplier?: string;
   allergen?: string; // e.g., "gluten", "dairy", "nuts" - could be an array for multiple
   lowStockThreshold?: number;
   currentStock?: number;
-  category?: string; // Nueva propiedad para la categoría del ingrediente
-  description?: string; // Nueva propiedad para la descripción del ingrediente
+  category?: string;
+  description?: string;
+  createdAt?: any; // Firestore Timestamp
+  updatedAt?: any; // Firestore Timestamp
 }
 
 export interface IngredientQuantity {
-  ingredientId: string;
-  name?: string; // For display purposes if ingredient object not readily available
-  quantity: number; // Numeric quantity
-  unit: string; // Unit for this specific quantity, e.g., "grams", "ml", "cups"
+  ingredientId: string; // ID from the 'ingredients' collection
+  name?: string; // For display purposes in forms, not strictly needed for saving if ID is present
+  quantity: number; // Numeric quantity for the recipe
+  unit: string; // Unit for this specific quantity in the recipe, e.g., "grams", "ml", "cups", "pieces"
 }
 
 export interface Menu {
