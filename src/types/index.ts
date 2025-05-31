@@ -42,7 +42,7 @@ export interface IngredientQuantity {
 export interface MenuRecipeItem {
   id: string;
   name: string;
-  cost?: number; 
+  cost?: number;
 }
 
 export interface Menu {
@@ -68,6 +68,7 @@ export interface InventoryItem {
   currentStock: number; // Current quantity in stock
   averageCostPerUnit?: number; // Weighted average cost for the unit defined in the Ingredient
   // unit is implicitly taken from the linked Ingredient document
+  createdAt?: any; // Firestore Timestamp, for when item was created
   updatedAt?: any; // Firestore Timestamp, for when the stock was last updated
 }
 
@@ -86,4 +87,3 @@ export interface ColumnConfig<T> {
   header: string;
   cell?: ({ row }: { row: { getValue: (key: string) => any } }) => React.ReactNode;
 }
-

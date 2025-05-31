@@ -54,10 +54,7 @@ export default function InventoryPage() {
               isLowStock: currentStock < lowStockThreshold,
             });
           } else {
-            // Handle case where ingredient for an inventory item might be missing
-            // This could be logged or an error shown for this specific item
             console.warn(`Ingrediente con ID ${item.ingredientId} no encontrado para el item de inventario ${item.id}`);
-            // Optionally, still add it with placeholder data or skip
             fetchedInventoryItems.push({
                 ...item,
                 ingredientName: `Ingrediente Desconocido (ID: ${item.ingredientId})`,
@@ -87,14 +84,10 @@ export default function InventoryPage() {
     if (!searchTerm) return inventory;
     return inventory.filter(item =>
       item.ingredientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.hotelName.toLowerCase().includes(searchTerm.toLowerCase())
+      (item.hotelName && item.hotelName.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [inventory, searchTerm]);
 
-  const handleAddItem = () => {
-    alert("Funcionalidad 'Añadir Artículo a Inventario' no implementada.");
-    // Future: router.push('/inventory/new');
-  };
 
   const handleRegisterPurchase = () => {
     alert("Funcionalidad 'Registrar Compra' no implementada.");
@@ -112,8 +105,10 @@ export default function InventoryPage() {
             <Button onClick={handleRegisterPurchase} variant="outline">
                 Registrar Compra
             </Button>
-            <Button onClick={handleAddItem}>
-              <PlusCircle className="mr-2 h-4 w-4" /> Añadir Artículo
+            <Button asChild>
+              <Link href="/inventory/new">
+                <PlusCircle className="mr-2 h-4 w-4" /> Añadir Artículo
+              </Link>
             </Button>
           </div>
         }
@@ -168,7 +163,7 @@ export default function InventoryPage() {
                 {filteredInventory.length === 0 && !isLoading && (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center text-muted-foreground h-24">
-                      {inventory.length === 0 ? "No hay artículos en el inventario." : "No se encontraron artículos que coincidan con tu búsqueda."}
+                      {inventory.length === 0 ? "No hay artículos en el inventario. Añade uno para empezar." : "No se encontraron artículos que coincidan con tu búsqueda."}
                     </TableCell>
                   </TableRow>
                 )}
@@ -206,7 +201,6 @@ export default function InventoryPage() {
         </CardHeader>
         <CardContent>
             <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                <li>Formulario para añadir nuevos artículos al inventario (vinculados a la biblioteca de ingredientes).</li>
                 <li>Formulario para registrar compras de ingredientes, actualizando stock y coste promedio ponderado.</li>
                 <li>Capacidad para ajustar manualmente el stock.</li>
                 <li>Historial de movimientos de inventario por artículo.</li>
