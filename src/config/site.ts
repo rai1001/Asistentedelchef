@@ -11,6 +11,7 @@ import {
   BarChartBig, 
   Archive,
   Trash2, // Icon for Waste Log
+  ClipboardList, // Icon for Production Planning
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -38,6 +39,7 @@ export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
   { title: "Ingredientes", href: "/ingredients", icon: ShoppingBasket, matchIncludes: true },
   { title: "Inventario", href: "/inventory", icon: Archive, matchIncludes: true },
   { title: "Registro de Mermas", href: "/waste-log", icon: Trash2, matchIncludes: true },
+  { title: "Planificación", href: "/production-plans", icon: ClipboardList, matchIncludes: true },
   {
     groupTitle: "IA y Machine Learning",
     icon: CookingPot,
@@ -48,3 +50,4 @@ export const sidebarNavItems: (NavItemConfig | NavItemGroupConfig)[] = [
     ],
   },
 ];
+

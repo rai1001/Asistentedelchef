@@ -1,4 +1,6 @@
 
+import type { Timestamp } from "firebase/firestore";
+
 export interface Recipe {
   id: string;
   name: string;
@@ -68,8 +70,8 @@ export interface InventoryItem {
   currentStock: number; // Current quantity in stock
   averageCostPerUnit?: number; // Weighted average cost for the unit defined in the Ingredient
   // unit is implicitly taken from the linked Ingredient document
-  createdAt?: any; // Firestore Timestamp, for when item was created
-  updatedAt?: any; // Firestore Timestamp, for when the stock was last updated
+  createdAt?: Timestamp; // Firestore Timestamp, for when item was created
+  updatedAt?: Timestamp; // Firestore Timestamp, for when the stock was last updated
 }
 
 // Combined type for displaying inventory items with ingredient details
@@ -88,11 +90,35 @@ export interface WasteLogEntry {
   ingredientName: string; // Denormalized for easier display
   quantity: number;
   unit: string; // Unit of the wasted quantity
-  date: any; // Firestore Timestamp
+  date: Timestamp; // Firestore Timestamp
   reason: string; // Could be enum: "Expired", "Spoiled", "Burnt", "Dropped", "Contaminated", "Overproduction", "Plate Waste", "Other"
   notes?: string;
   recordedBy?: string; // User ID or name, if auth is implemented
-  createdAt?: any; // Firestore Timestamp
+  createdAt?: Timestamp; // Firestore Timestamp
+}
+
+// For Production Planning
+export interface ProductionPlanRecipeItem {
+  recipeId: string;
+  recipeName: string; // Denormalized for easier display
+  targetQuantity: number;
+  // unit could be derived from the recipe or specified if needed
+}
+
+export type ProductionPlanStatus = 'Planeado' | 'En Progreso' | 'Completado' | 'Cancelado';
+
+export interface ProductionPlan {
+  id: string;
+  name: string;
+  hotelName: string;
+  planDate: Timestamp;
+  recipes: ProductionPlanRecipeItem[];
+  status: ProductionPlanStatus;
+  notes?: string;
+  totalIngredientsRequired?: any; // To be implemented later: structure for aggregated ingredients
+  stockAnalysis?: any; // To be implemented later: structure for stock comparison
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
 }
 
 
@@ -102,3 +128,4 @@ export interface ColumnConfig<T> {
   header: string;
   cell?: ({ row }: { row: { getValue: (key: string) => any } }) => React.ReactNode;
 }
+
