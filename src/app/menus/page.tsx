@@ -1,18 +1,20 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, FileUp, LayoutList, TrendingUp, DollarSign, Percent, CalendarDays, Hotel, AlertCircle, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { PlusCircle, FileUp, LayoutList, TrendingUp, DollarSign, Percent, CalendarDays, Hotel, AlertCircle, Loader2, Search } from "lucide-react";
 import type { Menu, MenuRecipeItem } from "@/types";
 import { db } from "@/lib/firebase/config";
 import { collection, getDocs, query, orderBy, Timestamp } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Helper function to safely convert Firestore Timestamp or string to Date object
 const convertToDate = (dateInput: any): Date | null => {
@@ -53,6 +55,7 @@ export default function MenusPage() {
   const [menus, setMenus] = React.useState<Menu[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const { toast } = useToast();
 
   useEffect(() => {
@@ -122,6 +125,14 @@ export default function MenusPage() {
     }
   };
 
+  const filteredMenus = useMemo(() => {
+    if (!searchTerm) return menus;
+    return menus.filter(menu =>
+      menu.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (menu.hotel && menu.hotel.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [menus, searchTerm]);
+
   return (
     <div className="space-y-8">
       <PageHeader 
@@ -144,103 +155,126 @@ export default function MenusPage() {
 
       <Card className="shadow-md">
         <CardHeader>
-            <CardTitle className="font-headline text-xl">Ingeniería de Menús</CardTitle>
+            <CardTitle className="font-headline text-xl">Principios de Ingeniería de Menús (Ej. Matriz BCG)</CardTitle>
             <CardDescription>
-            La ingeniería de menús te ayuda a analizar la rentabilidad y popularidad de tus platos y menús. Métricas como el costo, precio de venta y margen de beneficio son fundamentales para tomar decisiones estratégicas y optimizar tu oferta.
+            La ingeniería de menús te ayuda a analizar la rentabilidad y popularidad de tus platos y menús. 
+            Métricas como el costo, precio de venta y margen de beneficio son fundamentales. 
+            Herramientas como la Matriz BCG (Estrellas, Vacas Lecheras/Plowhorses, Puzzles/Incógnitas y Perros/Dogs) 
+            clasifican los ítems basándose en su popularidad (volumen de ventas) y rentabilidad.
+            Actualmente, calculamos la rentabilidad; la popularidad requeriría datos de ventas.
             </CardDescription>
         </CardHeader>
       </Card>
 
-      {isLoading && (
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-          <p className="ml-4 text-muted-foreground">Cargando menús...</p>
-        </div>
-      )}
-      {!isLoading && error && (
-        <Card className="md:col-span-2 lg:col-span-3">
-          <CardContent className="pt-6 text-center text-destructive">
-            <AlertCircle className="mx-auto h-12 w-12 mb-4" />
-            <p>{error}</p>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="font-headline">Listado de Menús</CardTitle>
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 pt-2">
+            <CardDescription>
+                Filtra y visualiza los menús creados.
+            </CardDescription>
+            <div className="relative w-full sm:max-w-xs">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input 
+                type="search"
+                placeholder="Buscar por nombre o hotel..." 
+                value={searchTerm} 
+                onChange={(e) => setSearchTerm(e.target.value)} 
+                className="pl-8 w-full"
+                />
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+            {isLoading && (
+                <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="ml-4 text-muted-foreground">Cargando menús...</p>
+                </div>
+            )}
+            {!isLoading && error && (
+                <div className="text-center text-destructive py-10">
+                    <AlertCircle className="mx-auto h-12 w-12 mb-4" />
+                    <p>{error}</p>
+                </div>
+            )}
+            {!isLoading && !error && filteredMenus.length === 0 && (
+                <p className="text-center text-muted-foreground py-10">
+                    {menus.length === 0 ? "No hay menús creados. ¡Empieza añadiendo uno!" : "No se encontraron menús que coincidan con tu búsqueda."}
+                </p>
+            )}
+            {!isLoading && !error && filteredMenus.length > 0 && (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-4">
+                    {filteredMenus.map(menu => {
+                    const profit = menu.sellingPrice && menu.totalCost ? menu.sellingPrice - menu.totalCost : undefined;
+                    const profitMargin = profit !== undefined && menu.sellingPrice && menu.sellingPrice !== 0 ? (profit / menu.sellingPrice) * 100 : undefined;
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {!isLoading && !error && menus.length === 0 && (
-            <Card className="md:col-span-2 lg:col-span-3">
-                <CardContent className="pt-6">
-                    <p className="text-center text-muted-foreground">No hay menús creados. ¡Empieza añadiendo uno!</p>
-                </CardContent>
-            </Card>
-        )}
-        {!isLoading && !error && menus.map(menu => {
-          const profit = menu.sellingPrice && menu.totalCost ? menu.sellingPrice - menu.totalCost : undefined;
-          const profitMargin = profit !== undefined && menu.sellingPrice && menu.sellingPrice !== 0 ? (profit / menu.sellingPrice) * 100 : undefined;
-
-          return (
-            <Card key={menu.id} className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-              <CardHeader>
-                <CardTitle className="font-headline">{menu.name}</CardTitle>
-                <CardDescription>{menu.description || "Sin descripción."}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow space-y-3">
-                <div>
-                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground flex items-center"><Hotel className="h-4 w-4 mr-2 text-primary/70" />Hotel:</h4>
-                  <p className="text-sm ml-6">{menu.hotel || "No especificado"}</p>
+                    return (
+                        <Card key={menu.id} className="shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
+                        <CardHeader>
+                            <CardTitle className="font-headline">{menu.name}</CardTitle>
+                            <CardDescription>{menu.description || "Sin descripción."}</CardDescription>
+                        </CardHeader>
+                        <CardContent className="flex-grow space-y-3">
+                            <div>
+                            <h4 className="font-semibold mb-1 text-sm text-muted-foreground flex items-center"><Hotel className="h-4 w-4 mr-2 text-primary/70" />Hotel:</h4>
+                            <p className="text-sm ml-6">{menu.hotel || "No especificado"}</p>
+                            </div>
+                            <div>
+                            <h4 className="font-semibold mb-1 text-sm text-muted-foreground flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary/70" />Período y Fechas:</h4>
+                            <p className="text-sm ml-6">{getPeriodLabel(menu.period)}</p>
+                            <p className="text-sm ml-6">{formatDateRange(menu.startDate, menu.endDate, menu.period)}</p>
+                            </div>
+                            <div>
+                            <h4 className="font-semibold mb-1 text-sm text-muted-foreground">Recetas Incluidas ({menu.recipes?.length || 0}):</h4>
+                            {menu.recipes && menu.recipes.length > 0 ? (
+                                <ScrollArea className="h-24 text-sm ml-6">
+                                    <ul className="list-disc list-inside space-y-1 pr-2">
+                                    {menu.recipes.map(recipe => (
+                                        <li key={recipe.id} className="truncate" title={recipe.name}>
+                                            {recipe.name} 
+                                            {recipe.cost !== undefined && <span className="text-xs text-muted-foreground"> (€{recipe.cost.toFixed(2)})</span>}
+                                        </li>
+                                    ))}
+                                    </ul>
+                                </ScrollArea>
+                            ) : (
+                                <p className="text-sm text-muted-foreground ml-6">No hay recetas asignadas.</p>
+                            )}
+                            </div>
+                        </CardContent>
+                        <CardContent className="border-t pt-4 space-y-3">
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground flex items-center"><DollarSign className="h-4 w-4 mr-1 text-primary/80" />Costo Total Est.:</span>
+                                <span className="font-semibold">€{menu.totalCost?.toFixed(2) || 'N/A'}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted-foreground flex items-center"><TrendingUp className="h-4 w-4 mr-1 text-primary/80" />Precio de Venta:</span>
+                                <span className="font-semibold">€{menu.sellingPrice?.toFixed(2) || 'N/A'}</span>
+                            </div>
+                            {profit !== undefined && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground flex items-center"><DollarSign className="h-4 w-4 mr-1 text-green-600" />Beneficio Bruto Est.:</span>
+                                    <span className={`font-semibold ${profit < 0 ? 'text-destructive' : 'text-green-600'}`}>€{profit.toFixed(2)}</span>
+                                </div>
+                            )}
+                            {profitMargin !== undefined && menu.sellingPrice && menu.sellingPrice > 0 && (
+                                <div className="flex justify-between items-center text-sm">
+                                    <span className="text-muted-foreground flex items-center"><Percent className="h-4 w-4 mr-1 text-blue-600" />Margen Beneficio Est.:</span>
+                                    <span className={`font-semibold ${profitMargin < 0 ? 'text-destructive' : 'text-blue-600'}`}>{profitMargin.toFixed(1)}%</span>
+                                </div>
+                            )}
+                            <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => alert(`Gestionar menú ${menu.name} no implementado`)}>
+                                Gestionar Menú
+                            </Button>
+                        </CardContent>
+                        </Card>
+                    );
+                    })}
                 </div>
-                <div>
-                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary/70" />Período y Fechas:</h4>
-                  <p className="text-sm ml-6">{getPeriodLabel(menu.period)}</p>
-                  <p className="text-sm ml-6">{formatDateRange(menu.startDate, menu.endDate, menu.period)}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold mb-1 text-sm text-muted-foreground">Recetas Incluidas ({menu.recipes?.length || 0}):</h4>
-                  {menu.recipes && menu.recipes.length > 0 ? (
-                     <ScrollArea className="h-24 text-sm ml-6">
-                        <ul className="list-disc list-inside space-y-1 pr-2">
-                        {menu.recipes.map(recipe => (
-                            <li key={recipe.id} className="truncate" title={recipe.name}>
-                                {recipe.name} 
-                                {recipe.cost !== undefined && <span className="text-xs text-muted-foreground"> (€{recipe.cost.toFixed(2)})</span>}
-                            </li>
-                        ))}
-                        </ul>
-                    </ScrollArea>
-                  ) : (
-                    <p className="text-sm text-muted-foreground ml-6">No hay recetas asignadas.</p>
-                  )}
-                </div>
-              </CardContent>
-              <CardContent className="border-t pt-4 space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground flex items-center"><DollarSign className="h-4 w-4 mr-1 text-primary/80" />Costo Total Est.:</span>
-                      <span className="font-semibold">€{menu.totalCost?.toFixed(2) || 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground flex items-center"><TrendingUp className="h-4 w-4 mr-1 text-primary/80" />Precio de Venta:</span>
-                      <span className="font-semibold">€{menu.sellingPrice?.toFixed(2) || 'N/A'}</span>
-                  </div>
-                  {profit !== undefined && (
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground flex items-center"><DollarSign className="h-4 w-4 mr-1 text-green-600" />Beneficio Bruto Est.:</span>
-                        <span className={`font-semibold ${profit < 0 ? 'text-destructive' : 'text-green-600'}`}>€{profit.toFixed(2)}</span>
-                    </div>
-                  )}
-                  {profitMargin !== undefined && menu.sellingPrice && menu.sellingPrice > 0 && (
-                    <div className="flex justify-between items-center text-sm">
-                        <span className="text-muted-foreground flex items-center"><Percent className="h-4 w-4 mr-1 text-blue-600" />Margen Beneficio Est.:</span>
-                        <span className={`font-semibold ${profitMargin < 0 ? 'text-destructive' : 'text-blue-600'}`}>{profitMargin.toFixed(1)}%</span>
-                    </div>
-                  )}
-                  <Button variant="outline" size="sm" className="w-full mt-4" onClick={() => alert(`Gestionar menú ${menu.name} no implementado`)}>
-                      Gestionar Menú
-                  </Button>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+            )}
+        </CardContent>
+      </Card>
       <Card>
         <CardHeader>
             <CardTitle className="font-headline">Área de Composición de Menús (Placeholder)</CardTitle>
@@ -253,3 +287,4 @@ export default function MenusPage() {
     </div>
   );
 }
+
