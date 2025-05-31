@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from 'react';
@@ -101,7 +102,7 @@ function NavMenu() {
         if ('groupTitle' in item) {
           const group = item as NavItemGroupConfig;
           return (
-            <SidebarGroup key={group.groupTitle + index} className="px-2 pt-2 pb-1">
+            <SidebarGroup key={group.groupTitle + '-' + index} className="px-2 pt-2 pb-1">
               {group.icon && (
                 <SidebarGroupLabel className={cn("flex items-center gap-2", {"justify-center": sidebarState === 'collapsed'})}>
                   <group.icon className="h-5 w-5" />
@@ -111,8 +112,8 @@ function NavMenu() {
               {!group.icon && <SidebarGroupLabel>{group.groupTitle}</SidebarGroupLabel>}
               
               <SidebarMenu>
-                {group.items.map((subItem) => (
-                  <SidebarMenuItem key={subItem.href}>
+                {group.items.map((subItem, subIndex) => (
+                  <SidebarMenuItem key={subItem.title + '-' + subIndex}>
                     <Link href={subItem.href} passHref legacyBehavior>
                       <SidebarMenuButton
                         isActive={isActive(subItem)}
@@ -132,7 +133,7 @@ function NavMenu() {
         } else {
           const navItem = item as NavItemConfig;
           return (
-            <SidebarMenuItem key={navItem.href} className="px-2">
+            <SidebarMenuItem key={navItem.title + '-' + index} className="px-2">
               <Link href={navItem.href} passHref legacyBehavior>
                 <SidebarMenuButton
                   isActive={isActive(navItem)}
