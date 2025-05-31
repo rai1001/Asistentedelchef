@@ -9,6 +9,7 @@ export interface Recipe {
   category?: string; // e.g., Appetizer, Main Course, Dessert
   cuisine?: string; // e.g., Italian, Mexican
   featured?: boolean; // For dashboard
+  dataAiHint?: string;
 }
 
 export interface Ingredient {
@@ -35,6 +36,7 @@ export interface Menu {
   description?: string;
   recipes: Recipe[]; // Embedding recipes directly for simplicity, or use IDs
   totalCost?: number; // Calculated
+  sellingPrice?: number; // Price at which the menu is sold
   date?: Date; // For daily/weekly menus
 }
 
