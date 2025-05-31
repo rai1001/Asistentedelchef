@@ -26,10 +26,23 @@ export async function addIngredientAction(
   console.log("[addIngredientAction] Received data:", data);
   try {
     const validatedData = ingredientSchema.parse(data);
-    console.log("[addIngredientAction] Validated data:", validatedData);
+    console.log("[addIngredientAction] Validated data (raw from Zod):", validatedData);
+
+    // Create a new object for Firestore, removing any undefined properties
+    const dataToSave: Partial<IngredientFormValues> = {};
+    for (const key in validatedData) {
+      if (Object.prototype.hasOwnProperty.call(validatedData, key)) {
+        const value = validatedData[key as keyof IngredientFormValues];
+        if (value !== undefined) {
+          dataToSave[key as keyof IngredientFormValues] = value;
+        }
+      }
+    }
+    console.log("[addIngredientAction] Data to save (cleaned):", dataToSave);
+
 
     const docRef = await addDoc(collection(db, "ingredients"), {
-      ...validatedData,
+      ...dataToSave,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
@@ -78,10 +91,20 @@ export async function addIngredientsBatchAction(
         currentStock: Number(ingredient.currentStock) || 0,
       });
       console.log(`[addIngredientsBatchAction] Validated data for index ${i}:`, validatedData);
+      
+      const dataToSave: Partial<IngredientFormValues> = {};
+      for (const key in validatedData) {
+        if (Object.prototype.hasOwnProperty.call(validatedData, key)) {
+          const value = validatedData[key as keyof IngredientFormValues];
+          if (value !== undefined) {
+            dataToSave[key as keyof IngredientFormValues] = value;
+          }
+        }
+      }
 
       const newDocRef = doc(ingredientsCollection); // Auto-generate ID
       batch.set(newDocRef, {
-        ...validatedData,
+        ...dataToSave,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });

@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, writeBatch, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { Ingredient, Recipe, IngredientQuantity, RecipeImportItem as RecipeImportItemType } from "@/types";
+import type { Ingredient, Recipe, IngredientQuantity, RecipeImportItem as RecipeImportItemType, RecipeNutritionAnalysisOutput } from "@/types";
 import { analyzeRecipeNutrition } from "@/ai/flows/analyze-recipe-nutrition";
 
 const ingredientQuantitySchema = z.object({
@@ -32,7 +32,7 @@ export async function addRecipeAction(
   console.log("[addRecipeAction] Received data:", data);
   try {
     const validatedData = recipeFormSchema.parse(data);
-    console.log("[addRecipeAction] Validated data:", validatedData);
+    console.log("[addRecipeAction] Validated data (raw from Zod):", validatedData);
 
     let totalCost = 0;
     const processedIngredients: IngredientQuantity[] = [];
@@ -41,7 +41,7 @@ export async function addRecipeAction(
     console.log("[addRecipeAction] Processing ingredients...");
     for (const item of validatedData.ingredients) {
       console.log(`[addRecipeAction] Processing ingredient item: ID='${item.ingredientId}', Qty: ${item.quantity}, Unit: '${item.unit}'`);
-      if (!item.ingredientId) { // Pre-check for empty ingredientId before Firestore call
+      if (!item.ingredientId) { 
         console.error("[addRecipeAction] Encountered an ingredient item with empty ID.");
         return { success: false, error: "Se encontró un ingrediente sin seleccionar en la lista. Por favor, revisa los ingredientes de la receta." };
       }
@@ -73,7 +73,7 @@ export async function addRecipeAction(
     const dietaryTagsArray = validatedData.dietaryTags?.split(',').map(tag => tag.trim()).filter(tag => tag) || [];
     console.log("[addRecipeAction] Dietary tags:", dietaryTagsArray);
 
-    const recipeToSave: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt' | 'nutritionalInfo'> = {
+    const recipePreSave: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt' | 'nutritionalInfo'> = {
       name: validatedData.name,
       category: validatedData.category,
       prepTime: validatedData.prepTime,
@@ -82,9 +82,21 @@ export async function addRecipeAction(
       imageUrl: validatedData.imageUrl,
       dietaryTags: dietaryTagsArray,
       ingredients: processedIngredients,
-      cost: totalCost,
+      cost: isNaN(totalCost) ? 0 : totalCost, // Ensure cost is not NaN
     };
-    console.log("[addRecipeAction] Recipe object to save (without nutritionalInfo):", recipeToSave);
+    
+    // Clean the object for Firestore: remove undefined fields
+    const recipeToSave: Partial<typeof recipePreSave> = {};
+    for (const key in recipePreSave) {
+      if (Object.prototype.hasOwnProperty.call(recipePreSave, key)) {
+        const value = recipePreSave[key as keyof typeof recipePreSave];
+        if (value !== undefined) {
+          recipeToSave[key as keyof typeof recipePreSave] = value;
+        }
+      }
+    }
+    console.log("[addRecipeAction] Recipe object to save (cleaned, without nutritionalInfo):", recipeToSave);
+
 
     const docRef = await addDoc(collection(db, "recipes"), {
       ...recipeToSave,
@@ -98,9 +110,13 @@ export async function addRecipeAction(
       analyzeRecipeNutrition({ recipeName: validatedData.name, ingredientsString: ingredientsStringForAI })
         .then(nutritionData => {
           if (nutritionData) {
-            console.log("[addRecipeAction] Nutritional info received for recipe ID", docRef.id, ":", nutritionData);
+            const cleanNutritionData: Partial<RecipeNutritionAnalysisOutput> = { ...nutritionData };
+            if (cleanNutritionData.disclaimer === undefined) {
+              delete cleanNutritionData.disclaimer; 
+            }
+            console.log("[addRecipeAction] Nutritional info received for recipe ID", docRef.id, ":", cleanNutritionData);
             updateDoc(doc(db, "recipes", docRef.id), {
-              nutritionalInfo: nutritionData,
+              nutritionalInfo: cleanNutritionData,
               updatedAt: serverTimestamp(),
             }).then(() => {
               console.log("[addRecipeAction] Recipe updated with nutritional info for ID:", docRef.id);
@@ -118,7 +134,7 @@ export async function addRecipeAction(
         console.log("[addRecipeAction] No ingredients string for AI, skipping nutritional analysis for recipe (ID:", docRef.id, ").");
     }
 
-    return { success: true, recipeId: docRef.id, cost: totalCost };
+    return { success: true, recipeId: docRef.id, cost: recipeToSave.cost };
   } catch (error) {
     console.error("[addRecipeAction] Error adding recipe:", error);
     if (error instanceof z.ZodError) {
@@ -238,8 +254,7 @@ export async function importRecipesAction(
 
       const dietaryTagsArray = validatedRecipeCore.dietaryTags?.split(',').map(tag => tag.trim()).filter(tag => tag) || [];
       
-      const newRecipeDocRef = doc(recipesCollection); 
-      batch.set(newRecipeDocRef, {
+      const recipePreImport = {
         name: validatedRecipeCore.name,
         category: validatedRecipeCore.category,
         prepTime: validatedRecipeCore.prepTime,
@@ -248,7 +263,22 @@ export async function importRecipesAction(
         imageUrl: validatedRecipeCore.imageUrl,
         dietaryTags: dietaryTagsArray,
         ingredients: recipeIngredients,
-        cost: currentRecipeCost,
+        cost: isNaN(currentRecipeCost) ? 0 : currentRecipeCost,
+      };
+
+      const recipeToImportInBatch: Partial<typeof recipePreImport> = {};
+      for (const key in recipePreImport) {
+        if (Object.prototype.hasOwnProperty.call(recipePreImport, key)) {
+          const value = recipePreImport[key as keyof typeof recipePreImport];
+          if (value !== undefined) {
+            recipeToImportInBatch[key as keyof typeof recipePreImport] = value;
+          }
+        }
+      }
+
+      const newRecipeDocRef = doc(recipesCollection); 
+      batch.set(newRecipeDocRef, {
+        ...recipeToImportInBatch,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -260,9 +290,13 @@ export async function importRecipesAction(
          analyzeRecipeNutrition({ recipeName: validatedRecipeCore.name, ingredientsString: ingredientsStringForAI })
           .then(nutritionData => {
             if (nutritionData) {
-              console.log(`[importRecipesAction] Nutritional info received for ${currentRecipeNameForLog} (ID: ${newRecipeDocRef.id}):`, nutritionData);
+              const cleanNutritionData: Partial<RecipeNutritionAnalysisOutput> = { ...nutritionData };
+              if (cleanNutritionData.disclaimer === undefined) {
+                delete cleanNutritionData.disclaimer;
+              }
+              console.log(`[importRecipesAction] Nutritional info received for ${currentRecipeNameForLog} (ID: ${newRecipeDocRef.id}):`, cleanNutritionData);
               updateDoc(doc(db, "recipes", newRecipeDocRef.id), { 
-                nutritionalInfo: nutritionData,
+                nutritionalInfo: cleanNutritionData,
                 updatedAt: serverTimestamp(),
               }).catch(updateError => {
                 console.warn(`[importRecipesAction] Error updating imported recipe ${currentRecipeNameForLog} (ID: ${newRecipeDocRef.id}) with nutritional info:`, updateError);
