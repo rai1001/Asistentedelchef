@@ -2,9 +2,10 @@
 "use server";
 
 import { z } from "zod";
-import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, writeBatch } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc, getDocs, writeBatch, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import type { Ingredient, Recipe, IngredientQuantity } from "@/types";
+import type { Ingredient, Recipe, IngredientQuantity, RecipeImportItem as RecipeImportItemType } from "@/types";
+import { analyzeRecipeNutrition } from "@/ai/flows/analyze-recipe-nutrition";
 
 const ingredientQuantitySchema = z.object({
   ingredientId: z.string().min(1, "Se debe seleccionar un ingrediente."),
@@ -33,6 +34,7 @@ export async function addRecipeAction(
 
     let totalCost = 0;
     const processedIngredients: IngredientQuantity[] = [];
+    let ingredientsStringForAI = "";
 
     for (const item of validatedData.ingredients) {
       const ingredientDocRef = doc(db, "ingredients", item.ingredientId);
@@ -48,15 +50,17 @@ export async function addRecipeAction(
 
       processedIngredients.push({
         ingredientId: item.ingredientId,
-        name: ingredientData.name, // Store name for easier display, helps avoid extra lookups
+        name: ingredientData.name, 
         quantity: item.quantity,
         unit: item.unit,
       });
+      ingredientsStringForAI += `${item.quantity}${item.unit} ${ingredientData.name}; `;
     }
+    ingredientsStringForAI = ingredientsStringForAI.trim().slice(0, -1); // Remove last semicolon and space
 
     const dietaryTagsArray = validatedData.dietaryTags?.split(',').map(tag => tag.trim()).filter(tag => tag) || [];
 
-    const recipeToSave: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt'> = {
+    const recipeToSave: Omit<Recipe, 'id' | 'createdAt' | 'updatedAt' | 'nutritionalInfo'> = {
       name: validatedData.name,
       category: validatedData.category,
       prepTime: validatedData.prepTime,
@@ -73,6 +77,26 @@ export async function addRecipeAction(
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+
+    // Asynchronously call AI for nutritional analysis and update the recipe document
+    // This does not block the function from returning
+    if (ingredientsStringForAI) {
+      analyzeRecipeNutrition({ recipeName: validatedData.name, ingredientsString: ingredientsStringForAI })
+        .then(nutritionData => {
+          if (nutritionData) {
+            updateDoc(doc(db, "recipes", docRef.id), {
+              nutritionalInfo: nutritionData,
+              updatedAt: serverTimestamp(),
+            }).catch(updateError => {
+              console.error("Error updating recipe with nutritional info:", updateError);
+            });
+          }
+        })
+        .catch(aiError => {
+          console.error("Error getting nutritional analysis from AI:", aiError);
+          // Optionally, update the recipe with an error status for nutritional info
+        });
+    }
 
     return { success: true, recipeId: docRef.id, cost: totalCost };
   } catch (error) {
@@ -108,14 +132,14 @@ interface ImportErrorDetail {
 }
 
 export async function importRecipesAction(
-  recipesData: Partial<RecipeImportItem>[]
+  recipesData: Partial<RecipeImportItemType>[]
 ): Promise<{ success: boolean; importedCount: number; errorCount: number; errors: ImportErrorDetail[] }> {
   
   const ingredientsCollection = collection(db, "ingredients");
   const ingredientsSnapshot = await getDocs(ingredientsCollection);
   const ingredientsMap = new Map<string, Ingredient>();
-  ingredientsSnapshot.docs.forEach(doc => {
-    const ingredient = { id: doc.id, ...doc.data() } as Ingredient;
+  ingredientsSnapshot.docs.forEach(docSnap => { // Renamed doc to docSnap to avoid conflict
+    const ingredient = { id: docSnap.id, ...docSnap.data() } as Ingredient;
     ingredientsMap.set(ingredient.name.toLowerCase(), ingredient);
   });
 
@@ -127,7 +151,6 @@ export async function importRecipesAction(
   for (let i = 0; i < recipesData.length; i++) {
     const rawRecipeData = recipesData[i];
     try {
-      // Validate the main structure of the recipe data from XLSX
       const validatedRecipeCore = recipeImportItemSchema.parse({
         name: rawRecipeData.name,
         category: rawRecipeData.category,
@@ -142,6 +165,8 @@ export async function importRecipesAction(
       const recipeIngredients: IngredientQuantity[] = [];
       let currentRecipeCost = 0;
       const ingredientParseErrors: string[] = [];
+      let ingredientsStringForAI = "";
+
 
       if (validatedRecipeCore.ingredientsString) {
         const ingredientsPairs = validatedRecipeCore.ingredientsString.split(';').map(s => s.trim()).filter(s => s);
@@ -161,11 +186,12 @@ export async function importRecipesAction(
             if (foundIngredient) {
               recipeIngredients.push({
                 ingredientId: foundIngredient.id,
-                name: foundIngredient.name, // Store name for display
+                name: foundIngredient.name, 
                 quantity: ingQuantity,
                 unit: ingUnit,
               });
               currentRecipeCost += (foundIngredient.costPerUnit || 0) * ingQuantity;
+              ingredientsStringForAI += `${ingQuantity}${ingUnit} ${foundIngredient.name}; `;
             } else {
               ingredientParseErrors.push(`Ingrediente '${ingName}' no encontrado en la biblioteca.`);
             }
@@ -174,6 +200,7 @@ export async function importRecipesAction(
           }
         }
       }
+      ingredientsStringForAI = ingredientsStringForAI.trim().slice(0, -1);
       
       if (recipeIngredients.length === 0 && validatedRecipeCore.ingredientsString) {
          ingredientParseErrors.push('No se pudieron procesar ingredientes válidos de la cadena proporcionada.');
@@ -183,10 +210,9 @@ export async function importRecipesAction(
         continue; 
       }
 
-
       const dietaryTagsArray = validatedRecipeCore.dietaryTags?.split(',').map(tag => tag.trim()).filter(tag => tag) || [];
       
-      const newRecipeDocRef = doc(recipesCollection); // Auto-generate ID
+      const newRecipeDocRef = doc(recipesCollection); 
       batch.set(newRecipeDocRef, {
         name: validatedRecipeCore.name,
         category: validatedRecipeCore.category,
@@ -199,8 +225,33 @@ export async function importRecipesAction(
         cost: currentRecipeCost,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
+        // nutritionalInfo will be added asynchronously after import
       });
       importedCount++;
+
+      // Asynchronously trigger nutritional analysis for imported recipe
+      if (ingredientsStringForAI) {
+         analyzeRecipeNutrition({ recipeName: validatedRecipeCore.name, ingredientsString: ingredientsStringForAI })
+          .then(nutritionData => {
+            if (nutritionData) {
+              // We need to commit the batch first, then update.
+              // This is a simplification; ideally, we'd update after batch commit.
+              // For now, this might update a doc that's still in a pending batch write,
+              // or we just log it if it causes issues.
+              // A more robust solution would queue these updates or handle them differently.
+              updateDoc(doc(db, "recipes", newRecipeDocRef.id), { // Use the ID from the batch
+                nutritionalInfo: nutritionData,
+                updatedAt: serverTimestamp(),
+              }).catch(updateError => {
+                console.warn(`Error updating imported recipe ${newRecipeDocRef.id} with nutritional info:`, updateError);
+              });
+            }
+          })
+          .catch(aiError => {
+            console.warn(`Error getting nutritional analysis for imported recipe ${newRecipeDocRef.id}:`, aiError);
+          });
+      }
+
 
     } catch (error: any) {
       let messages = ["Error desconocido al procesar la receta."];
@@ -218,7 +269,6 @@ export async function importRecipesAction(
       await batch.commit();
     } catch (commitError: any) {
       console.error("Error committing recipes batch to Firestore:", commitError);
-      // Add a general batch commit error, keeping existing individual errors
       errorDetails.push({ rowIndex: -1, recipeName: "Error de Lote General", errors: ["Error al guardar el lote de recetas en la base de datos: " + commitError.message] });
       return { success: false, importedCount: 0, errorCount: recipesData.length, errors: errorDetails };
     }

@@ -14,6 +14,7 @@ export interface Recipe {
   featured?: boolean; // For dashboard
   dataAiHint?: string;
   dietaryTags?: string[]; // e.g., ["vegan", "gluten-free"]
+  nutritionalInfo?: RecipeNutritionAnalysisOutput; // Added for nutritional analysis
   createdAt?: any; // Firestore Timestamp
   updatedAt?: any; // Firestore Timestamp
 }
@@ -169,10 +170,24 @@ export interface OperationalIncident {
   updatedAt?: Timestamp;
 }
 
-
 // For DataTable
 export interface ColumnConfig<T> {
   accessorKey: keyof T | string;
   header: string;
   cell?: ({ row }: { row: { getValue: (key: string) => any } }) => React.ReactNode;
+}
+
+// For Recipe Nutritional Analysis AI Flow
+export interface RecipeNutritionAnalysisInput {
+  recipeName: string;
+  ingredientsString: string; // e.g., "200g Tomates, 1 Cebolla, 100ml Aceite de Oliva"
+}
+
+export interface RecipeNutritionAnalysisOutput {
+  calories: number;
+  proteinGrams: number;
+  fatGrams: number;
+  carbohydrateGrams: number;
+  disclaimer?: string; // e.g., "Estimates may vary based on specific ingredients and preparation."
+  // We could add more fields like fiber, sugar, sodium, etc. if needed
 }

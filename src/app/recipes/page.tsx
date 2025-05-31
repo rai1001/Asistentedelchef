@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, FileUp, MoreHorizontal, BookOpen, Pencil, Trash2, Loader2, AlertCircle } from "lucide-react";
+import { PlusCircle, FileUp, MoreHorizontal, BookOpen, Pencil, Trash2, Loader2, AlertCircle, Activity } from "lucide-react";
 import type { Recipe } from "@/types";
 import Image from "next/image";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,7 @@ export default function RecipesPage() {
           dietaryTags: data.dietaryTags || [],
           ingredients: data.ingredients || [],
           instructions: data.instructions,
+          nutritionalInfo: data.nutritionalInfo, // Added
         } as Recipe;
       });
       setRecipes(fetchedRecipes);
@@ -108,9 +109,8 @@ export default function RecipesPage() {
           const workbook = XLSX.read(data, { type: 'binary' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const jsonData: Partial<RecipeImportItem>[] = XLSX.utils.sheet_to_json(worksheet, {defval: ""}); // Capture all columns even if empty
+          const jsonData: Partial<RecipeImportItem>[] = XLSX.utils.sheet_to_json(worksheet, {defval: ""}); 
           
-          // Basic validation for expected columns
           if (jsonData.length > 0 && (!('name' in jsonData[0]) || !('instructions' in jsonData[0]) || !('ingredientsString' in jsonData[0]))) {
             toast({
                 title: "Error de Formato de Archivo",
@@ -140,7 +140,7 @@ export default function RecipesPage() {
                     duration: 9000,
                 });
             }
-            fetchRecipes(); // Refresh list
+            fetchRecipes(); 
           } else {
             toast({
               title: "Error en la Importación de Recetas",
@@ -152,7 +152,7 @@ export default function RecipesPage() {
           }
         }
       };
-      reader.readAsArrayBuffer(file); // Use readAsArrayBuffer for binary types
+      reader.readAsArrayBuffer(file); 
     } catch (error) {
       console.error("Error importing recipes:", error);
       toast({
@@ -162,7 +162,7 @@ export default function RecipesPage() {
       });
     } finally {
       setIsImporting(false);
-      if(fileInputRef.current) fileInputRef.current.value = ""; // Reset file input
+      if(fileInputRef.current) fileInputRef.current.value = ""; 
     }
   };
 
@@ -240,8 +240,8 @@ export default function RecipesPage() {
                   <TableHead>Nombre</TableHead>
                   <TableHead>Categoría</TableHead>
                   <TableHead className="hidden md:table-cell">Cocina</TableHead>
-                  <TableHead className="hidden lg:table-cell text-right">Tiempo (min)</TableHead>
                   <TableHead className="text-right">Costo (€)</TableHead>
+                  <TableHead className="text-right hidden lg:table-cell">Calorías (est.)</TableHead>
                   <TableHead className="w-[50px] text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -270,9 +270,11 @@ export default function RecipesPage() {
                       <Badge variant="outline">{recipe.category || "-"}</Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{recipe.cuisine || "-"}</TableCell>
-                    <TableCell className="hidden lg:table-cell text-right">{recipe.prepTime ?? '-'}</TableCell>
                     <TableCell className="text-right">
                       {recipe.cost?.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? '-'}
+                    </TableCell>
+                    <TableCell className="text-right hidden lg:table-cell">
+                      {recipe.nutritionalInfo?.calories ? `${Math.round(recipe.nutritionalInfo.calories)} kcal` : <span className="text-xs text-muted-foreground">N/A</span>}
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -284,6 +286,9 @@ export default function RecipesPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+                           <DropdownMenuItem onClick={() => alert(`Ver detalles nutricionales de ${recipe.name} (no implementado). ${recipe.nutritionalInfo?.disclaimer || ''}`)} disabled={!recipe.nutritionalInfo}>
+                            <Activity className="mr-2 h-4 w-4" /> Ver Nutrición
+                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleEditRecipe(recipe.id)}>
                             <Pencil className="mr-2 h-4 w-4" /> Editar
                           </DropdownMenuItem>
