@@ -89,11 +89,15 @@ export default function NewRecipePage() {
   });
 
   async function onSubmit(values: RecipeFormValues) {
+    console.log("[RecipesPage] onSubmit triggered. Raw form values:", JSON.stringify(values));
     setIsLoading(true);
+    console.log("[RecipesPage] isLoading set to true.");
     try {
+      console.log("[RecipesPage] Calling addRecipeAction with values:", JSON.stringify(values));
       const result = await addRecipeAction(values);
+      console.log("[RecipesPage] addRecipeAction result:", JSON.stringify(result));
+
       if (result.success && result.recipeId) {
-        // Fetch the cost again if needed, or rely on the potentially returned cost
         const recipeCost = result.cost !== undefined ? result.cost : await getRecipeCost(result.recipeId);
         toast({
           title: "Receta Creada",
@@ -106,23 +110,29 @@ export default function NewRecipePage() {
           description: result.error || "No se pudo guardar la receta.",
           variant: "destructive",
         });
+        console.error("[RecipesPage] Error from addRecipeAction:", result.error);
       }
     } catch (error) {
-      console.error("Error submitting recipe form:", error);
+      console.error("[RecipesPage] Error in onSubmit function:", error);
       toast({
-        title: "Error Inesperado",
-        description: "Ocurrió un error al procesar la solicitud.",
+        title: "Error Inesperado en Formulario",
+        description: "Ocurrió un error al procesar la solicitud. Revisa la consola para más detalles.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      console.log("[RecipesPage] isLoading set to false (finally block).");
     }
   }
   
-  // Helper function to re-fetch recipe cost after creation for toast.
   async function getRecipeCost(recipeId: string): Promise<number> {
-    const recipeDocSnap = await getDoc(doc(db, "recipes", recipeId));
-    return recipeDocSnap.exists() ? (recipeDocSnap.data() as Recipe).cost || 0 : 0;
+    try {
+        const recipeDocSnap = await getDoc(doc(db, "recipes", recipeId));
+        return recipeDocSnap.exists() ? (recipeDocSnap.data() as Recipe).cost || 0 : 0;
+    } catch (e) {
+        console.error("Error fetching recipe cost for toast:", e);
+        return 0; // fallback
+    }
   }
 
 

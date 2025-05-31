@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -54,9 +54,13 @@ export default function NewIngredientPage() {
   });
 
   async function onSubmit(values: IngredientFormValues) {
+    console.log("[IngredientsPage] onSubmit triggered. Raw form values:", JSON.stringify(values));
     setIsLoading(true);
+    console.log("[IngredientsPage] isLoading set to true.");
     try {
+      console.log("[IngredientsPage] Calling addIngredientAction with values:", JSON.stringify(values));
       const result = await addIngredientAction(values);
+      console.log("[IngredientsPage] addIngredientAction result:", JSON.stringify(result));
       if (result.success) {
         toast({
           title: "Ingrediente Creado",
@@ -69,16 +73,18 @@ export default function NewIngredientPage() {
           description: result.error || "No se pudo guardar el ingrediente.",
           variant: "destructive",
         });
+        console.error("[IngredientsPage] Error from addIngredientAction:", result.error);
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
+      console.error("[IngredientsPage] Error in onSubmit function:", error);
       toast({
-        title: "Error Inesperado",
-        description: "Ocurrió un error al procesar la solicitud.",
+        title: "Error Inesperado en Formulario",
+        description: "Ocurrió un error al procesar la solicitud. Revisa la consola para más detalles.",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      console.log("[IngredientsPage] isLoading set to false (finally block).");
     }
   }
 
